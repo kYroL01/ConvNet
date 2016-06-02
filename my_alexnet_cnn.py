@@ -21,15 +21,16 @@ step = 20
 dropout = 0.8     # Dropout, probability to keep units
 
 
-
 ### FUNCTIONS FOR CREATE THE MODEL ###
 
 # Convolutional function
 def conv2d(name, img_input, w, b, f):
 
-    # print(img_input.get_shape(), w.get_shape())    
+    print(img_input.get_shape())
+    print(w.get_shape())
     
-    return tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(img_input, w, strides=[1, f, f, 3], padding='SAME'), b), name=name)
+    # return tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(img_input, w, strides=[1, f, f, 3], padding='SAME'), b), name=name)
+    return tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(img_input, w, strides=[1, f, f, 1], padding='SAME'), b), name=name)
 
 # Max Pooling function
 def max_pool(name, img_input, k):
@@ -51,7 +52,7 @@ def model(_img, _weights, _biases, _dropout):
     # Max Pooling (down-sampling)
     pool1 = max_pool('pool1', conv1, k=2)
     # Apply Normalization
-    norm1 = norm('norm1', pool1, lsize=4)
+    norm1 = norm('norm1', pool1, size=4)
     # Apply Dropout
     norm1 = tf.nn.dropout(norm1, _dropout)
 
@@ -60,7 +61,7 @@ def model(_img, _weights, _biases, _dropout):
     # Max Pooling (down-sampling)
     pool2 = max_pool('pool2', conv2, k=2)
     # Apply Normalization
-    norm2 = norm('norm2', pool2, lsize=4)
+    norm2 = norm('norm2', pool2, size=4)
     # Apply Dropout
     norm2 = tf.nn.dropout(norm2, _dropout)
 
@@ -257,11 +258,11 @@ def main():
 
     # tf Graph input """ THE SOFTMAX REGRESSION """
     train_images_node = tf.placeholder(tf.float32, shape=(BATCH_SIZE, IMAGE_SIZE, IMAGE_SIZE, NUM_CHANNELS))
-    # print("SHAPE TRAIN IMG = ", train_images_node.get_shape())
+    print("SHAPE TRAIN IMG = ", train_images_node.get_shape())
 
     train_labels_node = tf.placeholder(tf.int32, shape=(BATCH_SIZE, NUM_CLASSES))
 
-    # print("SHAPE TRAIN LAB = ", train_labels_node.get_shape())
+    print("SHAPE TRAIN LAB = ", train_labels_node.get_shape())
 
     keep_prob = tf.placeholder(tf.float32) # dropout (keep probability)
 
