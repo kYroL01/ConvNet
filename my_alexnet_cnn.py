@@ -26,8 +26,8 @@ dropout = 0.8     # Dropout, probability to keep units
 # Convolutional function
 def conv2d(name, img_input, w, b, f):
 
-    print(img_input.get_shape())
-    print(w.get_shape())
+    print("img_input_conv2d = ", img_input.get_shape())
+    print("weight_input_conv2d = ", w.get_shape())
     
     # return tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(img_input, w, strides=[1, f, f, 3], padding='SAME'), b), name=name)
     return tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(img_input, w, strides=[1, f, f, 1], padding='SAME'), b), name=name)
@@ -75,11 +75,15 @@ def model(_img, _weights, _biases, _dropout):
     conv5 = conv2d('conv5', conv4, _weights['wc5'], _biases['bc5'], f=1)
     # Max Pooling (down-sampling)
     pool5 = max_pool('pool5', conv5, k=2)
+    # Apply Normalization
+    norm3 = norm('norm3', pool5, size=4)
+    # Apply Dropout
+    norm3 = tf.nn.dropout(norm3, _dropout)
 
     # Reshape to a 2-D matrix conv3 output to fit dense layer input
-    reshape = tf.reshape(pool5, [-1, _weights['wfc1'].get_shape().as_list()[0]])
+    reshape = tf.reshape(norm3, [-1, _weights['wfc1'].get_shape().as_list()[0]])
     # Fully connected layer1
-    fc1 = tf.nn.relu(tf.matmul(reshape, _weights['wfc1']) + _biases['bfc1'], name='fc1')
+    fc1 = tf.nn.relu(tf.matmul(norm3, _weights['wfc1']) + _biases['bfc1'], name='fc1')
     # Fully connected layer2
     fc2 = tf.nn.relu(tf.matmul(fc1, _weights['wfc2']) + _biases['bfc2'], name='fc2')
     # Output, class prediction
@@ -269,9 +273,9 @@ def main():
     # Weight & bias
     weights = {
         'wc1': tf.get_variable("wc1", [11, 11, 3, 96], initializer=tf.random_normal_initializer(stddev=0.1)),
-        'wc2': tf.get_variable("wc2", [5, 5, 48, 256], initializer=tf.random_normal_initializer(stddev=0.1)),      
+        'wc2': tf.get_variable("wc2", [5, 5, 96, 256], initializer=tf.random_normal_initializer(stddev=0.1)),      
         'wc3': tf.get_variable("wc3", [3, 3, 256, 384], initializer=tf.random_normal_initializer(stddev=0.1)),
-        'wc4': tf.get_variable("wc4", [3, 3, 192, 384], initializer=tf.random_normal_initializer(stddev=0.1)),
+        'wc4': tf.get_variable("wc4", [3, 3, 384, 192], initializer=tf.random_normal_initializer(stddev=0.1)),
         'wc5': tf.get_variable("wc5", [3, 3, 192, 296], initializer=tf.random_normal_initializer(stddev=0.1)),      
         'wfc1': tf.get_variable("wfc1", [2*2*296, 4096], initializer=tf.random_normal_initializer(stddev=0.1)),        
         'wfc2': tf.get_variable("wfc2", [4096, 4096], initializer=tf.random_normal_initializer(stddev=0.1)),        
@@ -289,7 +293,7 @@ def main():
         'bc1': tf.Variable(tf.zeros([96])),
         'bc2': tf.Variable(tf.constant(0.1, shape=[256])),
         'bc3': tf.Variable(tf.zeros([384])),
-        'bc4': tf.Variable(tf.constant(0.1, shape=[384])),
+        'bc4': tf.Variable(tf.constant(0.1, shape=[192])),
         'bc5': tf.Variable(tf.zeros([296])),
         'bfc1': tf.Variable(tf.zeros([4096])),
         'bfc2': tf.Variable(tf.zeros([4096])),
