@@ -9,9 +9,10 @@ IMAGE_DIR = os.getcwd() + '/small_dataset'
 
 dataset = Dataset(IMAGE_DIR)
 
-# Parameters
+# Parameters of Logistic Regression
+BATCH_SIZE = 32
 learning_rate = 0.001
-max_epoch = 200000
+max_epochs = 1000
 display_step = 20
 
 # Network Parameters
@@ -153,21 +154,29 @@ class ConvNet(object):
             test_labels  = labels[idx:img_count]
 
             # Run for epoch
-            for epoch in xrange(max_epoch):
-                for step in xrange((len(imgs)/BATCH_SIZE) +1):
+            for epoch in xrange(max_epochs):
+                avg_cost = 0.
+                num_batch = int(len(imgs)/BATCH_SIZE) # 10 but BATCH_SIZE to FIX
+                
+                # Loop over all batches
+                for step in xrange(num_batch):
 
                     batch_imgs, batch_labels = self.nextBatch(train_imgs, train_labels, step, 20)
 
                     # Fit training using batch data
                     sess.run(optimizer, feed_dict={img_pl: batch_imgs, label_pl: batch_labels, keep_prob: dropout})
+                    # Compute average loss
+                    avg_cost += sess.run(cost, feed_dict={img_pl: batch_imgs, label_pl: batch_labels, keep_prob: dropout})/num_batch
 
+                    # Display logs per epoch step
                     if step % display_step == 0:
-                        print 'calculating accuracy'
-                        # Calculate batch accuracy
+                        print ("Epoch: %03d/%03d cost: %.9f" % (epoch, max_epochs, avg_cost))
+                        # Calculate training batch accuracy
                         acc = sess.run(accuracy, feed_dict={img_pl: batch_imgs, label_pl: batch_labels, keep_prob: 1.})
-                        # Calculate batch loss
+                        # Calculate training batch loss
                         loss = sess.run(cost, feed_dict={img_pl: batch_imgs, label_pl: batch_labels, keep_prob: 1.})
-                        print "Iter " + str(step*BATCH_SIZE) + ", Minibatch Loss= " + "{:.6f}".format(loss) + ", Training Accuracy= " + "{:.5f}".format(acc)
+                        print "Training Accuracy = " + "{:.5f}".format(acc)
+                        print "Training Loss = " + "{:.5f}".format(loss)
 
             print "Optimization Finished!"
 
@@ -175,18 +184,13 @@ class ConvNet(object):
             save_model_ckpt = saver.save(sess, "/tmp/model.ckpt")
             print("Model saved in file %s" % save_model_ckpt)
 
-    def test(self):
-        pass
-    #TODO: add test
         #print "Testing Accuracy:", sess.run(accuracy, feed_dict={x: mnist.test.images[:256], y: mnist.test.labels[:256], keep_prob: 1.})
-
 
     def predict(self):
         # Restore model from disk.
         # saver.restore(sess, "/tmp/model.ckpt")
         # print("Model restored")
         pass
-
 
 
 ### MAIN ###
