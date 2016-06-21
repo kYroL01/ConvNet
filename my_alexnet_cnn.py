@@ -125,6 +125,10 @@ class ConvNet(object):
         # Initializing the variables
         init = tf.initialize_all_variables()
 
+        # count total number of imgs
+        img_count = dataset.getNumImages()
+        print("img_count = ", img_count)
+
         # Launch the graph
         with tf.Session() as sess:
             sess.run(init)
@@ -132,16 +136,27 @@ class ConvNet(object):
 
             imgs = []
             labels = []
+            # get the dataset images and labels
             for img, label in dataset.getDataset():
                 imgs.append(img)
                 labels.append(label)
 
             print 'Dataset created - images list and labels list'
+            print 'Now split images and labels in Training and Test set...'
 
+            idx = int(4 * img_count/5)
+
+            # Split images and labels
+            train_imgs = imgs[0:idx]
+            train_labels = labels[0:idx]
+            test_imgs    = imgs[idx:img_count]
+            test_labels  = labels[idx:img_count]
+
+            # Run for epoch
             for epoch in xrange(max_epoch):
                 for step in xrange((len(imgs)/BATCH_SIZE) +1):
 
-                    batch_imgs, batch_labels = self.nextBatch(imgs, labels, step, BATCH_SIZE)
+                    batch_imgs, batch_labels = self.nextBatch(train_imgs, train_labels, step, 20)
 
                     # Fit training using batch data
                     sess.run(optimizer, feed_dict={img_pl: batch_imgs, label_pl: batch_labels, keep_prob: dropout})
