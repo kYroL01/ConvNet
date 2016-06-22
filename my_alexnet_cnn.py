@@ -4,7 +4,6 @@ import tensorflow as tf
 import numpy as np
 
 IMG_SIZE = 30
-BATCH_SIZE = 32
 IMAGE_DIR = os.getcwd() + '/small_dataset'
 
 dataset = Dataset(IMAGE_DIR)
@@ -12,8 +11,9 @@ dataset = Dataset(IMAGE_DIR)
 # Parameters of Logistic Regression
 BATCH_SIZE = 32
 learning_rate = 0.001
-max_epochs = 1000
-display_step = 20
+max_epochs = 100
+display_step = 10
+stddev = 1.0  # This affects accuracy
 
 # Network Parameters
 n_input = IMG_SIZE**2
@@ -34,12 +34,12 @@ class ConvNet(object):
     def __init__(self):
         # Store layers weight & bias
         self.weights = {
-            'wc1': tf.Variable(tf.random_normal([3, 3, 1, BATCH_SIZE])),
-            'wc2': tf.Variable(tf.random_normal([3, 3, BATCH_SIZE, BATCH_SIZE*2])),
-            'wc3': tf.Variable(tf.random_normal([3, 3, BATCH_SIZE*2, BATCH_SIZE*4])),
-            'wd': tf.Variable(tf.random_normal([4*4*BATCH_SIZE*4, BATCH_SIZE*16])),
-            'wfc': tf.Variable(tf.random_normal([BATCH_SIZE*16, BATCH_SIZE*16])),
-            'out': tf.Variable(tf.random_normal([BATCH_SIZE*16, n_classes]))
+            'wc1': tf.Variable(tf.random_normal([3, 3, 1, BATCH_SIZE], stddev=stddev)),
+            'wc2': tf.Variable(tf.random_normal([3, 3, BATCH_SIZE, BATCH_SIZE*2], stddev=stddev)),
+            'wc3': tf.Variable(tf.random_normal([3, 3, BATCH_SIZE*2, BATCH_SIZE*4], stddev=stddev)),
+            'wd': tf.Variable(tf.random_normal([4*4*BATCH_SIZE*4, BATCH_SIZE*16], stddev=stddev)),
+            'wfc': tf.Variable(tf.random_normal([BATCH_SIZE*16, BATCH_SIZE*16], stddev=stddev)),
+            'out': tf.Variable(tf.random_normal([BATCH_SIZE*16, n_classes], stddev=stddev))
         }
         self.biases = {
             'bc1': tf.Variable(tf.random_normal([BATCH_SIZE])),
@@ -107,6 +107,7 @@ class ConvNet(object):
         out = tf.matmul(fc2, _weights['out']) + _biases['out']
         return out
 
+    # Method for training the model and testing its accuracy
     def training(self):
 
         # Construct model
@@ -156,10 +157,10 @@ class ConvNet(object):
             # Run for epoch
             for epoch in xrange(max_epochs):
                 avg_cost = 0.
-                num_batch = int(len(imgs)/BATCH_SIZE) # 10 but BATCH_SIZE to FIX
+                num_batch = int(len(imgs)/BATCH_SIZE) # 20 but BATCH_SIZE to FIX
                 
                 # Loop over all batches
-                for step in xrange(num_batch):
+                for step in xrange(num_batch + 1):
 
                     batch_imgs, batch_labels = self.nextBatch(train_imgs, train_labels, step, 20)
 
@@ -172,11 +173,11 @@ class ConvNet(object):
                     if step % display_step == 0:
                         print ("Epoch: %03d/%03d cost: %.9f" % (epoch, max_epochs, avg_cost))
                         # Calculate training batch accuracy
-                        acc = sess.run(accuracy, feed_dict={img_pl: batch_imgs, label_pl: batch_labels, keep_prob: 1.})
+                        train_acc = sess.run(accuracy, feed_dict={img_pl: batch_imgs, label_pl: batch_labels, keep_prob: 1.})
                         # Calculate training batch loss
-                        loss = sess.run(cost, feed_dict={img_pl: batch_imgs, label_pl: batch_labels, keep_prob: 1.})
-                        print "Training Accuracy = " + "{:.5f}".format(acc)
-                        print "Training Loss = " + "{:.5f}".format(loss)
+                        train_loss = sess.run(cost, feed_dict={img_pl: batch_imgs, label_pl: batch_labels, keep_prob: 1.})
+                        print "Training Accuracy = " + "{:.5f}".format(train_acc)
+                        print "Training Loss = " + "{:.5f}".format(train_loss)
 
             print "Optimization Finished!"
 
@@ -184,9 +185,11 @@ class ConvNet(object):
             save_model_ckpt = saver.save(sess, "/tmp/model.ckpt")
             print("Model saved in file %s" % save_model_ckpt)
 
-        #print "Testing Accuracy:", sess.run(accuracy, feed_dict={x: mnist.test.images[:256], y: mnist.test.labels[:256], keep_prob: 1.})
+            # Test accuracy
+            test_acc = sess.run(accuracy, feed_dict={img_pl: test_imgs, label_pl: test_labels, keep_prob: 1.})
+            print " Test accuracy: %.3f" % (test_acc)
 
-    def predict(self):
+    def prediction(self):
         # Restore model from disk.
         # saver.restore(sess, "/tmp/model.ckpt")
         # print("Model restored")
@@ -201,9 +204,6 @@ def main():
 
     # TRAINING
     conv_net.training()
-
-    # TESTING
-    conv_net.test()
 
     # PREDICTION
     conv_net.prediction()
