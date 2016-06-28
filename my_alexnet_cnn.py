@@ -171,7 +171,7 @@ class ConvNet(object):
 
                     # Display logs per epoch step
                     if step % display_step == 0:
-                        print ("Epoch: %03d/%03d cost: %.9f" % (epoch, max_epochs, avg_cost))
+                        print "Epoch: %03d/%03d cost: %.9f" % (epoch, max_epochs, avg_cost)
                         # Calculate training batch accuracy
                         train_acc = sess.run(accuracy, feed_dict={img_pl: batch_imgs, label_pl: batch_labels, keep_prob: 1.})
                         # Calculate training batch loss
@@ -189,11 +189,34 @@ class ConvNet(object):
             test_acc = sess.run(accuracy, feed_dict={img_pl: test_imgs, label_pl: test_labels, keep_prob: 1.})
             print " Test accuracy: %.3f" % (test_acc)
 
-    def prediction(self):
-        # Restore model from disk.
-        # saver.restore(sess, "/tmp/model.ckpt")
-        # print("Model restored")
-        pass
+    def prediction(self, img_path):
+        with tf.Session() as sess:
+
+            # check if image is a correct JPG file
+            if(os.path.isfile(img_path) and (img_path.endswith('jpeg') or
+                                             (img_path.endswith('jpg')))):
+                # Read image and convert it
+                img_bytes = tf.read_file(img_path)
+                #img_u8 = tf.image.decode_jpeg(img_bytes, channels=3)
+                img_u8 = tf.image.decode_jpeg(img_bytes, channels=1)
+                img_u8_eval = session.run(img_u8)
+                image = tf.image.convert_image_dtype(img_u8_eval, tf.float32)
+                img_padded_or_cropped = tf.image.resize_image_with_crop_or_pad(image, IMG_SIZE, IMG_SIZE)
+                #img_padded_or_cropped = tf.reshape(img_padded_or_cropped, shape=[IMG_SIZE*IMG_SIZE, 3])
+                img_padded_or_cropped = tf.reshape(img_padded_or_cropped, shape=[IMG_SIZE * IMG_SIZE])
+
+                # Restore model.
+                ckpt = tf.train.get_checkpoint_state("/tmp/")
+                if(ckpt):
+                    saver.restore(sess, "/tmp/model.ckpt")
+                    print("Model restored")
+                else:
+                    print "No model checkpoint found to restore - ERROR"
+                    return
+
+                # Run the model to get predictions
+                # predict = sess.run(# y
+                #                    , feed_dict={img_pl: img_padded_or_cropped, keep_prob: 1.})
 
 
 ### MAIN ###
@@ -206,7 +229,9 @@ def main():
     conv_net.training()
 
     # PREDICTION
-    conv_net.prediction()
+    print "reading image to classify... "
+    img_path = os.getcwd() + 'Abete_rosso.jpg'
+    conv_net.prediction(img_path)
 
 
 if __name__ == '__main__':

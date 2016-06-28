@@ -49,7 +49,8 @@ class Dataset(object):
                 path = os.path.join(self.image_dir, dirName)
                 for img in os.listdir(path):
                     img_path = os.path.join(path, img)
-                    if os.path.isfile(img_path) and img.endswith('jpeg'):
+                    if os.path.isfile(img_path) and (img.endswith('jpeg') or
+                                                     (img.endswith('jpg'))):
                         img_bytes = tf.read_file(img_path)
                         #img_u8 = tf.image.decode_jpeg(img_bytes, channels=3)
                         img_u8 = tf.image.decode_jpeg(img_bytes, channels=1)
