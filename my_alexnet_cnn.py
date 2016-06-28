@@ -11,7 +11,7 @@ dataset = Dataset(IMAGE_DIR)
 # Parameters of Logistic Regression
 BATCH_SIZE = 32
 learning_rate = 0.001
-max_epochs = 100
+max_epochs = 50
 display_step = 10
 stddev = 1.0  # This affects accuracy
 
@@ -49,6 +49,9 @@ class ConvNet(object):
             'bfc': tf.Variable(tf.random_normal([BATCH_SIZE*16])),
             'out': tf.Variable(tf.random_normal([n_classes]))
         }
+        # Create a saver for writing training checkpoints.
+        self.saver = tf.train.Saver()
+
 
     # Return the next batch of size batch_size
     def nextBatch(self, imgs, labels, step, batch_size):
@@ -121,9 +124,6 @@ class ConvNet(object):
         correct_pred = tf.equal(tf.argmax(pred,1), tf.argmax(label_pl,1))
         accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
-        # Create a saver for writing training checkpoints.
-        saver = tf.train.Saver()
-
         # Initializing the variables
         init = tf.initialize_all_variables()
 
@@ -182,7 +182,7 @@ class ConvNet(object):
             print "Optimization Finished!"
 
             # Save the models to disk
-            save_model_ckpt = saver.save(sess, "/tmp/model.ckpt")
+            save_model_ckpt = self.saver.save(sess, "/tmp/model.ckpt")
             print("Model saved in file %s" % save_model_ckpt)
 
             # Test accuracy
@@ -192,6 +192,11 @@ class ConvNet(object):
     def prediction(self, img_path):
         with tf.Session() as sess:
 
+            # Construct model
+            pred = self.alex_net_model(img_pl, self.weights, self.biases, keep_prob)
+
+            pred = tf.argmax(pred,1)
+
             # check if image is a correct JPG file
             if(os.path.isfile(img_path) and (img_path.endswith('jpeg') or
                                              (img_path.endswith('jpg')))):
@@ -199,24 +204,29 @@ class ConvNet(object):
                 img_bytes = tf.read_file(img_path)
                 #img_u8 = tf.image.decode_jpeg(img_bytes, channels=3)
                 img_u8 = tf.image.decode_jpeg(img_bytes, channels=1)
-                img_u8_eval = session.run(img_u8)
+                img_u8_eval = sess.run(img_u8)
                 image = tf.image.convert_image_dtype(img_u8_eval, tf.float32)
                 img_padded_or_cropped = tf.image.resize_image_with_crop_or_pad(image, IMG_SIZE, IMG_SIZE)
                 #img_padded_or_cropped = tf.reshape(img_padded_or_cropped, shape=[IMG_SIZE*IMG_SIZE, 3])
                 img_padded_or_cropped = tf.reshape(img_padded_or_cropped, shape=[IMG_SIZE * IMG_SIZE])
+                # eval
+                img_eval = img_padded_or_cropped.eval()
 
                 # Restore model.
                 ckpt = tf.train.get_checkpoint_state("/tmp/")
                 if(ckpt):
-                    saver.restore(sess, "/tmp/model.ckpt")
+                    self.saver.restore(sess, "/tmp/model.ckpt")
                     print("Model restored")
                 else:
                     print "No model checkpoint found to restore - ERROR"
                     return
 
                 # Run the model to get predictions
-                # predict = sess.run(# y
-                #                    , feed_dict={img_pl: img_padded_or_cropped, keep_prob: 1.})
+                predict = sess.run(pred, feed_dict={img_pl: [img_eval], keep_prob: 1.})
+                print predict
+
+            else:
+                print "ERROR IMAGE"
 
 
 ### MAIN ###
@@ -230,7 +240,7 @@ def main():
 
     # PREDICTION
     print "reading image to classify... "
-    img_path = os.getcwd() + 'Abete_rosso.jpg'
+    img_path = os.getcwd() + '/Abete_rosso.jpg'
     conv_net.prediction(img_path)
 
 
