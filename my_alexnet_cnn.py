@@ -21,12 +21,6 @@ n_classes = 4
 n_channels = 3
 dropout = 0.8 # Dropout, probability to keep units
 
-# Graph input
-img_pl = tf.placeholder(tf.float32, [None, n_input, # n_channels
-])
-label_pl = tf.placeholder(tf.float32, [None, n_classes])
-keep_prob = tf.placeholder(tf.float32) # dropout (keep probability)
-
 
 class ConvNet(object):
 
@@ -49,9 +43,15 @@ class ConvNet(object):
             'bfc': tf.Variable(tf.random_normal([BATCH_SIZE*16])),
             'out': tf.Variable(tf.random_normal([n_classes]))
         }
+
+        # Graph input
+        self.img_pl = tf.placeholder(tf.float32, [None, n_input, # n_channels
+        ])
+        self.label_pl = tf.placeholder(tf.float32, [None, n_classes])
+        self.keep_prob = tf.placeholder(tf.float32) # dropout (keep probability)
+        
         # Create a saver for writing training checkpoints.
         self.saver = tf.train.Saver()
-
 
     # Return the next batch of size batch_size
     def nextBatch(self, imgs, labels, step, batch_size):
@@ -102,9 +102,9 @@ class ConvNet(object):
         norm3 = tf.nn.dropout(norm3, _dropout)
 
         # Fully connected layer
-        dense = tf.reshape(norm3, [-1, _weights['wd'].get_shape().as_list()[0]])         # Reshape conv3 output to fit dense layer input
+        dense = tf.reshape(norm3, [-1, _weights['wd'].get_shape().as_list()[0]])        # Reshape conv3 output to fit dense layer input
         fc1 = tf.nn.relu(tf.matmul(dense, _weights['wd']) + _biases['bd'], name='fc1')  # Relu activation
-        fc2 = tf.nn.relu(tf.matmul(fc1, _weights['wfc']) + _biases['bfc'], name='fc2')    # Relu activation
+        fc2 = tf.nn.relu(tf.matmul(fc1, _weights['wfc']) + _biases['bfc'], name='fc2')  # Relu activation
 
         # Output, class prediction
         out = tf.matmul(fc2, _weights['out']) + _biases['out']
@@ -114,14 +114,14 @@ class ConvNet(object):
     def training(self):
 
         # Construct model
-        pred = self.alex_net_model(img_pl, self.weights, self.biases, keep_prob)
+        pred = self.alex_net_model(self.img_pl, self.weights, self.biases, self.keep_prob)
 
         # Define loss and optimizer
-        cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(pred, label_pl))
+        cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(pred, self.label_pl))
         optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 
         # Evaluate model
-        correct_pred = tf.equal(tf.argmax(pred,1), tf.argmax(label_pl,1))
+        correct_pred = tf.equal(tf.argmax(pred,1), tf.argmax(self.label_pl,1))
         accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
         # Initializing the variables
@@ -165,17 +165,17 @@ class ConvNet(object):
                     batch_imgs, batch_labels = self.nextBatch(train_imgs, train_labels, step, 20)
 
                     # Fit training using batch data
-                    sess.run(optimizer, feed_dict={img_pl: batch_imgs, label_pl: batch_labels, keep_prob: dropout})
+                    sess.run(optimizer, feed_dict={self.img_pl: batch_imgs, self.label_pl: batch_labels, self.keep_prob: dropout})
                     # Compute average loss
-                    avg_cost += sess.run(cost, feed_dict={img_pl: batch_imgs, label_pl: batch_labels, keep_prob: dropout})/num_batch
+                    avg_cost += sess.run(cost, feed_dict={self.img_pl: batch_imgs, self.label_pl: batch_labels, self.keep_prob: dropout})/num_batch
 
                     # Display logs per epoch step
                     if step % display_step == 0:
                         print "Epoch: %03d/%03d cost: %.9f" % (epoch, max_epochs, avg_cost)
                         # Calculate training batch accuracy
-                        train_acc = sess.run(accuracy, feed_dict={img_pl: batch_imgs, label_pl: batch_labels, keep_prob: 1.})
+                        train_acc = sess.run(accuracy, feed_dict={self.img_pl: batch_imgs, self.label_pl: batch_labels, self.keep_prob: 1.})
                         # Calculate training batch loss
-                        train_loss = sess.run(cost, feed_dict={img_pl: batch_imgs, label_pl: batch_labels, keep_prob: 1.})
+                        train_loss = sess.run(cost, feed_dict={self.img_pl: batch_imgs, self.label_pl: batch_labels, self.keep_prob: 1.})
                         print "Training Accuracy = " + "{:.5f}".format(train_acc)
                         print "Training Loss = " + "{:.5f}".format(train_loss)
 
@@ -186,14 +186,14 @@ class ConvNet(object):
             print("Model saved in file %s" % save_model_ckpt)
 
             # Test accuracy
-            test_acc = sess.run(accuracy, feed_dict={img_pl: test_imgs, label_pl: test_labels, keep_prob: 1.})
+            test_acc = sess.run(accuracy, feed_dict={self.img_pl: test_imgs, self.label_pl: test_labels, self.keep_prob: 1.})
             print " Test accuracy: %.3f" % (test_acc)
 
     def prediction(self, img_path):
         with tf.Session() as sess:
 
             # Construct model
-            pred = self.alex_net_model(img_pl, self.weights, self.biases, keep_prob)
+            pred = self.alex_net_model(self.img_pl, self.weights, self.biases, self.keep_prob)
 
             pred = tf.argmax(pred,1)
 
@@ -222,7 +222,7 @@ class ConvNet(object):
                     return
 
                 # Run the model to get predictions
-                predict = sess.run(pred, feed_dict={img_pl: [img_eval], keep_prob: 1.})
+                predict = sess.run(pred, feed_dict={self.img_pl: [img_eval], self.keep_prob: 1.})
                 print predict
 
             else:
@@ -239,9 +239,13 @@ def main():
     conv_net.training()
 
     # PREDICTION
-    print "reading image to classify... "
-    img_path = os.getcwd() + '/Abete_rosso.jpg'
-    conv_net.prediction(img_path)
+    for dirName in os.listdir(IMAGE_DIR):
+        path = os.path.join(IMAGE_DIR, dirName)
+        for img in os.listdir(path):
+            print "reading image to classify... "
+            img_path = os.path.join(path, img)
+            conv_net.prediction(img_path)
+            print("IMG PATH = ", img_path)
 
 
 if __name__ == '__main__':
