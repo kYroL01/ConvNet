@@ -77,7 +77,7 @@ class ConvNet(object):
         return tf.nn.max_pool(l_input, ksize=[1, k, k, 1], strides=[1, s, s, 1], padding='SAME', name=name)
 
     def norm(self, name, l_input, lsize):
-        return tf.nn.lrn(l_input, lsize, bias=1.0, alpha=0.001 / 9.0, beta=0.75, name=name)
+        return tf.nn.lrn(l_input, lsize, bias=2.0, alpha=0.001 / 9.0, beta=0.75, name=name)
 
     def alex_net_model(self, _X, _weights, _biases, _dropout):
         # Reshape input picture
@@ -188,7 +188,7 @@ class ConvNet(object):
             # Run for epoch
             for epoch in xrange(max_epochs):
                 avg_cost = 0.
-                num_batch = int(len(imgs)/BATCH_SIZE)
+                num_batch = int(len(imgs)/32)
                 
                 # Loop over all batches
                 for step in xrange(num_batch + 1):
