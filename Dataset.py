@@ -17,7 +17,7 @@ import numpy as np
 import tensorflow as tf
 
 
-IMG_SIZE = 30
+IMG_SIZE = 224
 
 LABELS_DICT = {
     'Cani': 0,
@@ -52,14 +52,12 @@ class Dataset(object):
                     if os.path.isfile(img_path) and (img.endswith('jpeg') or
                                                      (img.endswith('jpg'))):
                         img_bytes = tf.read_file(img_path)
-                        #img_u8 = tf.image.decode_jpeg(img_bytes, channels=3)
-                        img_u8 = tf.image.decode_jpeg(img_bytes, channels=1)
+                        img_u8 = tf.image.decode_jpeg(img_bytes, channels=3)
                         img_u8_eval = session.run(img_u8)
                         image = tf.image.convert_image_dtype(img_u8_eval, tf.float32)
                         img_padded_or_cropped = tf.image.resize_image_with_crop_or_pad(image, IMG_SIZE, IMG_SIZE)
 
-                        #img_padded_or_cropped = tf.reshape(img_padded_or_cropped, shape=[IMG_SIZE*IMG_SIZE, 3])
-                        img_padded_or_cropped = tf.reshape(img_padded_or_cropped, shape=[IMG_SIZE * IMG_SIZE])
+                        img_padded_or_cropped = tf.reshape(img_padded_or_cropped, shape=[IMG_SIZE * IMG_SIZE, 3])
 
                         yield img_padded_or_cropped.eval(), np.array(label)
     
@@ -89,10 +87,10 @@ class Dataset(object):
     """
     Convert all the images in the folders in numpy ndarray 
     """
-    def convertToArray(self):
+    # def convertToArray(self):
         
-        for dirName, subdirList, fileList in os.walk(imageDir):
-            # print('Directory: %s' % dirName)
-            # for img in fileList:
-            for image, padded, cropped in pad_and_crop_image_dimensions(200, 200, imageDir):
-                yield padded, self.conv_labels(imageDir)
+    #     for dirName, subdirList, fileList in os.walk(imageDir):
+    #         # print('Directory: %s' % dirName)
+    #         # for img in fileList:
+    #         for image, padded, cropped in pad_and_crop_image_dimensions(200, 200, imageDir):
+    #             yield padded, self.conv_labels(imageDir)

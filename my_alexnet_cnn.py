@@ -3,13 +3,13 @@ import os
 import tensorflow as tf
 import numpy as np
 
-IMG_SIZE = 30
+IMG_SIZE = 224
 IMAGE_DIR = os.getcwd() + '/small_dataset'
 
 dataset = Dataset(IMAGE_DIR)
 
 # Parameters of Logistic Regression
-BATCH_SIZE = 32
+BATCH_SIZE = 20
 learning_rate = 0.001
 max_epochs = 50
 display_step = 10
@@ -26,27 +26,36 @@ class ConvNet(object):
 
     # Constructor
     def __init__(self):
+
         # Store layers weight & bias
         self.weights = {
-            'wc1': tf.Variable(tf.random_normal([3, 3, 1, BATCH_SIZE], stddev=stddev)),
-            'wc2': tf.Variable(tf.random_normal([3, 3, BATCH_SIZE, BATCH_SIZE*2], stddev=stddev)),
-            'wc3': tf.Variable(tf.random_normal([3, 3, BATCH_SIZE*2, BATCH_SIZE*4], stddev=stddev)),
-            'wd': tf.Variable(tf.random_normal([4*4*BATCH_SIZE*4, BATCH_SIZE*16], stddev=stddev)),
-            'wfc': tf.Variable(tf.random_normal([BATCH_SIZE*16, BATCH_SIZE*16], stddev=stddev)),
-            'out': tf.Variable(tf.random_normal([BATCH_SIZE*16, n_classes], stddev=stddev))
+            'wc1': tf.Variable(tf.random_normal([11, 11, 3, 96], stddev=stddev)),
+            'wc2': tf.Variable(tf.random_normal([5, 5, 96, 192], stddev=stddev)),
+            'wc3': tf.Variable(tf.random_normal([3, 3, 192, 384], stddev=stddev)),
+            'wc4': tf.Variable(tf.random_normal([3, 3, 384, 384], stddev=stddev)),
+            'wc5': tf.Variable(tf.random_normal([3, 3, 384, 256], stddev=stddev)),
+            
+            'wd': tf.Variable(tf.random_normal([12544, 4096])),
+            'wfc': tf.Variable(tf.random_normal([4096, 1024], stddev=stddev)),
+            
+            'out': tf.Variable(tf.random_normal([1024, n_classes], stddev=stddev))
         }
+        
         self.biases = {
-            'bc1': tf.Variable(tf.random_normal([BATCH_SIZE])),
-            'bc2': tf.Variable(tf.random_normal([BATCH_SIZE*2])),
-            'bc3': tf.Variable(tf.random_normal([BATCH_SIZE*4])),
-            'bd': tf.Variable(tf.random_normal([BATCH_SIZE*16])),
-            'bfc': tf.Variable(tf.random_normal([BATCH_SIZE*16])),
+            'bc1': tf.Variable(tf.random_normal([96])),
+            'bc2': tf.Variable(tf.random_normal([192])),
+            'bc3': tf.Variable(tf.random_normal([384])),
+            'bc4': tf.Variable(tf.random_normal([384])),
+            'bc5': tf.Variable(tf.random_normal([256])),
+            
+            'bd': tf.Variable(tf.random_normal([4096])),
+            'bfc': tf.Variable(tf.random_normal([1024])),
+
             'out': tf.Variable(tf.random_normal([n_classes]))
         }
 
         # Graph input
-        self.img_pl = tf.placeholder(tf.float32, [None, n_input, # n_channels
-        ])
+        self.img_pl = tf.placeholder(tf.float32, [None, n_input, n_channels])
         self.label_pl = tf.placeholder(tf.float32, [None, n_classes])
         self.keep_prob = tf.placeholder(tf.float32) # dropout (keep probability)
         
@@ -61,53 +70,74 @@ class ConvNet(object):
     """ 
     Create AlexNet model 
     """
-    def conv2d(self, name, l_input, w, b):
-        return tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(l_input, w, strides=[1, 1, 1, 1], padding='SAME'),b), name=name)
+    def conv2d(self, name, l_input, w, b, s):
+        return tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(l_input, w, strides=[1, s, s, 1], padding='SAME'), b), name=name)
 
-    def max_pool(self, name, l_input, k):
-        return tf.nn.max_pool(l_input, ksize=[1, k, k, 1], strides=[1, k, k, 1], padding='SAME', name=name)
+    def max_pool(self, name, l_input, k, s):
+        return tf.nn.max_pool(l_input, ksize=[1, k, k, 1], strides=[1, s, s, 1], padding='SAME', name=name)
 
-    def norm(self, name, l_input, lsize=4):
+    def norm(self, name, l_input, lsize):
         return tf.nn.lrn(l_input, lsize, bias=1.0, alpha=0.001 / 9.0, beta=0.75, name=name)
 
     def alex_net_model(self, _X, _weights, _biases, _dropout):
         # Reshape input picture
-        _X = tf.reshape(_X, shape=[-1, IMG_SIZE, IMG_SIZE, 1])
+        _X = tf.reshape(_X, shape=[-1, IMG_SIZE, IMG_SIZE, 3])
 
-        # Convolution Layer
-        conv1 = self.conv2d('conv1', _X, _weights['wc1'], _biases['bc1'])
+        # Convolution Layer 1
+        conv1 = self.conv2d('conv1', _X, _weights['wc1'], _biases['bc1'], 4)
+        print "conv1.shape:", conv1.get_shape()
         # Max Pooling (down-sampling)
-        pool1 = self.max_pool('pool1', conv1, k=2)
+        pool1 = self.max_pool('pool1', conv1, k=3, s=2)
+        print "pool1.shape:", pool1.get_shape()
         # Apply Normalization
         norm1 = self.norm('norm1', pool1, lsize=4)
+        print "norm1.shape:", norm1.get_shape()
         # Apply Dropout
-        norm1 = tf.nn.dropout(norm1, _dropout)
+        dropout1 = tf.nn.dropout(norm1, _dropout)    
 
-        # Convolution Layer
-        conv2 = self.conv2d('conv2', norm1, _weights['wc2'], _biases['bc2'])
+        # Convolution Layer 2
+        conv2 = self.conv2d('conv2', dropout1, _weights['wc2'], _biases['bc2'], s=1)
+        print "conv2.shape:", conv2.get_shape()
         # Max Pooling (down-sampling)
-        pool2 = self.max_pool('pool2', conv2, k=2)
+        pool2 = self.max_pool('pool2', conv2, k=3, s=2)
+        print "pool2.shape:", pool2.get_shape()
         # Apply Normalization
         norm2 = self.norm('norm2', pool2, lsize=4)
+        print "norm2.shape:", norm2.get_shape()
         # Apply Dropout
-        norm2 = tf.nn.dropout(norm2, _dropout)
+        dropout2 = tf.nn.dropout(norm2, _dropout)
+        print "dropout2.shape:", dropout2.get_shape()
 
-        # Convolution Layer
-        conv3 = self.conv2d('conv3', norm2, _weights['wc3'], _biases['bc3'])
-        # Max Pooling (down-sampling)
-        pool3 = self.max_pool('pool3', conv3, k=2)
-        # Apply Normalization
-        norm3 = self.norm('norm3', pool3, lsize=4)
-        # Apply Dropout
-        norm3 = tf.nn.dropout(norm3, _dropout)
+        # Convolution Layer 3
+        conv3 = self.conv2d('conv3', dropout2, _weights['wc3'], _biases['bc3'], s=1)
+        print "conv3.shape:", conv3.get_shape()
 
-        # Fully connected layer
-        dense = tf.reshape(norm3, [-1, _weights['wd'].get_shape().as_list()[0]])        # Reshape conv3 output to fit dense layer input
+        # Convolution Layer 4
+        conv4 = self.conv2d('conv4', conv3, _weights['wc4'], _biases['bc4'], s=1)
+        print "conv4.shape:", conv4.get_shape()
+
+        # Convolution Layer 5
+        conv5 = self.conv2d('conv5', conv4, _weights['wc5'], _biases['bc5'], s=1)
+        print "conv5.shape:", conv5.get_shape()
+        pool5 = self.max_pool('pool5', conv5, k=3, s=2)
+        print "pool5.shape:", pool5.get_shape()
+
+        # Fully connected layer 1
+        pool5_shape = pool5.get_shape().as_list()
+        dense = tf.reshape(pool5, [-1, pool5_shape[1] * pool5_shape[2] * pool5_shape[3]])
+        print "dense.shape:", dense.get_shape()
         fc1 = tf.nn.relu(tf.matmul(dense, _weights['wd']) + _biases['bd'], name='fc1')  # Relu activation
+        print "fc1.shape:", fc1.get_shape()
+        
+        # Fully connected layer 2
         fc2 = tf.nn.relu(tf.matmul(fc1, _weights['wfc']) + _biases['bfc'], name='fc2')  # Relu activation
+        print "fc2.shape:", fc2.get_shape()
 
         # Output, class prediction
         out = tf.matmul(fc2, _weights['out']) + _biases['out']
+        print "out.shape:", out.get_shape()
+        print "OUT = ", out
+        
         return out
 
     # Method for training the model and testing its accuracy
@@ -134,6 +164,7 @@ class ConvNet(object):
         # Launch the graph
         with tf.Session() as sess:
             sess.run(init)
+            summary_writer = tf.train.SummaryWriter('/tmp/tf_logs/ConvNet', graph=sess.graph)
             step = 0
 
             imgs = []
@@ -157,14 +188,15 @@ class ConvNet(object):
             # Run for epoch
             for epoch in xrange(max_epochs):
                 avg_cost = 0.
-                num_batch = int(len(imgs)/BATCH_SIZE) # 20 but BATCH_SIZE to FIX
+                num_batch = int(len(imgs)/BATCH_SIZE)
                 
                 # Loop over all batches
                 for step in xrange(num_batch + 1):
 
-                    batch_imgs, batch_labels = self.nextBatch(train_imgs, train_labels, step, 20)
+                    batch_imgs, batch_labels = self.nextBatch(train_imgs, train_labels, step, BATCH_SIZE)
 
                     # Fit training using batch data
+                    print("IMG_PL = ", self.img_pl.get_shape())
                     sess.run(optimizer, feed_dict={self.img_pl: batch_imgs, self.label_pl: batch_labels, self.keep_prob: dropout})
                     # Compute average loss
                     avg_cost += sess.run(cost, feed_dict={self.img_pl: batch_imgs, self.label_pl: batch_labels, self.keep_prob: dropout})/num_batch
@@ -239,13 +271,13 @@ def main():
     conv_net.training()
 
     # PREDICTION
-    for dirName in os.listdir(IMAGE_DIR):
-        path = os.path.join(IMAGE_DIR, dirName)
-        for img in os.listdir(path):
-            print "reading image to classify... "
-            img_path = os.path.join(path, img)
-            conv_net.prediction(img_path)
-            print("IMG PATH = ", img_path)
+    # for dirName in os.listdir(IMAGE_DIR):
+    #     path = os.path.join(IMAGE_DIR, dirName)
+    #     for img in os.listdir(path):
+    #         print "reading image to classify... "
+    #         img_path = os.path.join(path, img)
+    #         conv_net.prediction(img_path)
+    #         print("IMG PATH = ", img_path)
 
 
 if __name__ == '__main__':
