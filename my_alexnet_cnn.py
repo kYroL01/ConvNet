@@ -1,5 +1,6 @@
 from Dataset import Dataset
 import os
+import sys
 import tensorflow as tf
 import numpy as np
 
@@ -10,10 +11,10 @@ dataset = Dataset(IMAGE_DIR)
 
 # Parameters of Logistic Regression
 BATCH_SIZE = 20
-learning_rate = 0.001
-max_epochs = 50
-display_step = 10
-stddev = 1.0  # This affects accuracy
+# learning_rate = 0.001
+# max_epochs = 10
+# display_step = 10
+# std_dev = 1.0  # This affects accuracy
 
 # Network Parameters
 n_input = IMG_SIZE**2
@@ -25,20 +26,20 @@ dropout = 0.8 # Dropout, probability to keep units
 class ConvNet(object):
 
     # Constructor
-    def __init__(self):
+    def __init__(self, learning_rate, max_epochs, display_step, std_dev):
 
         # Store layers weight & bias
         self.weights = {
-            'wc1': tf.Variable(tf.random_normal([11, 11, 3, 96], stddev=stddev)),
-            'wc2': tf.Variable(tf.random_normal([5, 5, 96, 192], stddev=stddev)),
-            'wc3': tf.Variable(tf.random_normal([3, 3, 192, 384], stddev=stddev)),
-            'wc4': tf.Variable(tf.random_normal([3, 3, 384, 384], stddev=stddev)),
-            'wc5': tf.Variable(tf.random_normal([3, 3, 384, 256], stddev=stddev)),
+            'wc1': tf.Variable(tf.random_normal([11, 11, 3, 96], stddev=std_dev)),
+            'wc2': tf.Variable(tf.random_normal([5, 5, 96, 192], stddev=std_dev)),
+            'wc3': tf.Variable(tf.random_normal([3, 3, 192, 384], stddev=std_dev)),
+            'wc4': tf.Variable(tf.random_normal([3, 3, 384, 384], stddev=std_dev)),
+            'wc5': tf.Variable(tf.random_normal([3, 3, 384, 256], stddev=std_dev)),
             
             'wd': tf.Variable(tf.random_normal([12544, 4096])),
-            'wfc': tf.Variable(tf.random_normal([4096, 1024], stddev=stddev)),
+            'wfc': tf.Variable(tf.random_normal([4096, 1024], stddev=std_dev)),
             
-            'out': tf.Variable(tf.random_normal([1024, n_classes], stddev=stddev))
+            'out': tf.Variable(tf.random_normal([1024, n_classes], stddev=std_dev))
         }
         
         self.biases = {
@@ -196,7 +197,7 @@ class ConvNet(object):
                     batch_imgs, batch_labels = self.nextBatch(train_imgs, train_labels, step, BATCH_SIZE)
 
                     # Fit training using batch data
-                    print("IMG_PL = ", self.img_pl.get_shape())
+                    # print("IMG_PL = ", self.img_pl.get_shape())
                     sess.run(optimizer, feed_dict={self.img_pl: batch_imgs, self.label_pl: batch_labels, self.keep_prob: dropout})
                     # Compute average loss
                     avg_cost += sess.run(cost, feed_dict={self.img_pl: batch_imgs, self.label_pl: batch_labels, self.keep_prob: dropout})/num_batch
@@ -264,20 +265,31 @@ class ConvNet(object):
 ### MAIN ###
 def main():
 
+    # args from command line:
+    # 1) learning_rate
+    # 2) max_epochs
+    # 3) display_step
+    # 4) std_dev
+    learning_rate = float(sys.argv[1])
+    max_epochs = int(sys.argv[2])
+    display_step = int(sys.argv[3])
+    std_dev = float(sys.argv[4])
+
+    
     # create the object ConvNet
-    conv_net = ConvNet()
+    conv_net = ConvNet(learning_rate, max_epochs, display_step, std_dev)
 
     # TRAINING
     conv_net.training()
 
     # PREDICTION
-    # for dirName in os.listdir(IMAGE_DIR):
-    #     path = os.path.join(IMAGE_DIR, dirName)
-    #     for img in os.listdir(path):
-    #         print "reading image to classify... "
-    #         img_path = os.path.join(path, img)
-    #         conv_net.prediction(img_path)
-    #         print("IMG PATH = ", img_path)
+    for dirName in os.listdir(IMAGE_DIR):
+        path = os.path.join(IMAGE_DIR, dirName)
+        for img in os.listdir(path):
+            print "reading image to classify... "
+            img_path = os.path.join(path, img)
+            conv_net.prediction(img_path)
+            print("IMG PATH = ", img_path)
 
 
 if __name__ == '__main__':
