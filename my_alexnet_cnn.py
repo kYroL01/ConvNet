@@ -28,6 +28,12 @@ class ConvNet(object):
     # Constructor
     def __init__(self, learning_rate, max_epochs, display_step, std_dev):
 
+        # Initialize params
+        self.learning_rate=learning_rate
+        self.max_epochs=max_epochs
+        self.display_step=display_step
+        self.std_dev=std_dev
+        
         # Store layers weight & bias
         self.weights = {
             'wc1': tf.Variable(tf.random_normal([11, 11, 3, 96], stddev=std_dev)),
@@ -149,7 +155,7 @@ class ConvNet(object):
 
         # Define loss and optimizer
         cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(pred, self.label_pl))
-        optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
+        optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(cost)
 
         # Evaluate model
         correct_pred = tf.equal(tf.argmax(pred,1), tf.argmax(self.label_pl,1))
@@ -187,7 +193,7 @@ class ConvNet(object):
             test_labels  = labels[idx:img_count]
 
             # Run for epoch
-            for epoch in xrange(max_epochs):
+            for epoch in xrange(self.max_epochs):
                 avg_cost = 0.
                 num_batch = int(len(imgs)/32)
                 
@@ -203,8 +209,8 @@ class ConvNet(object):
                     avg_cost += sess.run(cost, feed_dict={self.img_pl: batch_imgs, self.label_pl: batch_labels, self.keep_prob: dropout})/num_batch
 
                     # Display logs per epoch step
-                    if step % display_step == 0:
-                        print "Epoch: %03d/%03d cost: %.9f" % (epoch, max_epochs, avg_cost)
+                    if step % self.display_step == 0:
+                        print "Epoch: %03d/%03d cost: %.9f" % (epoch, self.max_epochs, avg_cost)
                         # Calculate training batch accuracy
                         train_acc = sess.run(accuracy, feed_dict={self.img_pl: batch_imgs, self.label_pl: batch_labels, self.keep_prob: 1.})
                         # Calculate training batch loss
@@ -283,13 +289,13 @@ def main():
     conv_net.training()
 
     # PREDICTION
-    for dirName in os.listdir(IMAGE_DIR):
-        path = os.path.join(IMAGE_DIR, dirName)
-        for img in os.listdir(path):
-            print "reading image to classify... "
-            img_path = os.path.join(path, img)
-            conv_net.prediction(img_path)
-            print("IMG PATH = ", img_path)
+    # for dirName in os.listdir(IMAGE_DIR):
+    #     path = os.path.join(IMAGE_DIR, dirName)
+    #     for img in os.listdir(path):
+    #         print "reading image to classify... "
+    #         img_path = os.path.join(path, img)
+    #         conv_net.prediction(img_path)
+    #         print("IMG PATH = ", img_path)
 
 
 if __name__ == '__main__':
