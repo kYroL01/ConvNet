@@ -142,6 +142,7 @@ class ConvNet(object):
 
         # Output, class prediction
         out = tf.matmul(fc2, _weights['out']) + _biases['out']
+
         print "out.shape:", out.get_shape()
         print "OUT = ", out
         
@@ -195,28 +196,28 @@ class ConvNet(object):
             # Run for epoch
             for epoch in xrange(self.max_epochs):
                 avg_cost = 0.
-                num_batch = int(len(imgs)/32)
+                num_batch = int(len(train_imgs)/BATCH_SIZE)
                 
                 # Loop over all batches
-                for step in xrange(num_batch + 1):
+                for step in xrange(num_batch):
 
                     batch_imgs, batch_labels = self.nextBatch(train_imgs, train_labels, step, BATCH_SIZE)
 
                     # Fit training using batch data
                     # print("IMG_PL = ", self.img_pl.get_shape())
-                    sess.run(optimizer, feed_dict={self.img_pl: batch_imgs, self.label_pl: batch_labels, self.keep_prob: dropout})
+                    _, single_cost = sess.run([optimizer, cost], feed_dict={self.img_pl: batch_imgs, self.label_pl: batch_labels, self.keep_prob: dropout})
                     # Compute average loss
-                    avg_cost += sess.run(cost, feed_dict={self.img_pl: batch_imgs, self.label_pl: batch_labels, self.keep_prob: dropout})/num_batch
+                    avg_cost += single_cost
 
                     # Display logs per epoch step
                     if step % self.display_step == 0:
-                        print "Epoch: %03d/%03d cost: %.9f" % (epoch, self.max_epochs, avg_cost)
+                        print "Step %03d - Epoch %03d/%03d cost: %.9f - single %.9f" % (step, epoch, self.max_epochs, avg_cost/step, single_cost)
                         # Calculate training batch accuracy
-                        train_acc = sess.run(accuracy, feed_dict={self.img_pl: batch_imgs, self.label_pl: batch_labels, self.keep_prob: 1.})
+                        train_acc, train_loss = sess.run([accuracy, cost], feed_dict={self.img_pl: batch_imgs, self.label_pl: batch_labels, self.keep_prob: 1.})
                         # Calculate training batch loss
-                        train_loss = sess.run(cost, feed_dict={self.img_pl: batch_imgs, self.label_pl: batch_labels, self.keep_prob: 1.})
+                        #train_loss = sess.run(cost, feed_dict={self.img_pl: batch_imgs, self.label_pl: batch_labels, self.keep_prob: 1.})
                         print "Training Accuracy = " + "{:.5f}".format(train_acc)
-                        print "Training Loss = " + "{:.5f}".format(train_loss)
+                        print "Training Loss = " + "{:.6f}".format(train_loss)
 
             print "Optimization Finished!"
 
