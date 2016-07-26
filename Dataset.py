@@ -42,10 +42,14 @@ class Dataset(object):
     """
     def getDataset(self):
         with tf.Session() as session:
-            tf.initialize_all_variables().run()
 
+            index_offset = np.arange(1) * len(LABELS_DICT)
+            labels_one_hot = np.zeros((1, len(LABELS_DICT)))
+            
+            tf.initialize_all_variables().run()
+            
             for dirName in os.listdir(self.image_dir):
-                label = self.convLabels(dirName)
+                label = self.convLabels(dirName, index_offset, labels_one_hot)
                 path = os.path.join(self.image_dir, dirName)
                 for img in os.listdir(path):
                     img_path = os.path.join(path, img)
@@ -75,22 +79,8 @@ class Dataset(object):
     """
     Convert labels from string to nparray of int
     """
-    def convLabels(self, imageDir):
-        index_offset = np.arange(1) * len(LABELS_DICT)
-        labels_one_hot = np.zeros((1, len(LABELS_DICT)))
-        labels_one_hot.flat[index_offset + np.array([LABELS_DICT[imageDir]])] = 1
+    def convLabels(self, imageDir, index_offset, labels_one_hot):
+        labels_one_hot.flat[index_offset + np.array([LABELS_DICT[imageDir]])] = 1.0
         print("LABELS_ONE_HOT = ", labels_one_hot)
 
         return labels_one_hot[0]
-
-    
-    """
-    Convert all the images in the folders in numpy ndarray 
-    """
-    # def convertToArray(self):
-        
-    #     for dirName, subdirList, fileList in os.walk(imageDir):
-    #         # print('Directory: %s' % dirName)
-    #         # for img in fileList:
-    #         for image, padded, cropped in pad_and_crop_image_dimensions(200, 200, imageDir):
-    #             yield padded, self.conv_labels(imageDir)
