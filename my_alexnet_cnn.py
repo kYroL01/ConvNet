@@ -3,11 +3,17 @@ import os
 import sys
 import tensorflow as tf
 import numpy as np
+import logging as log
+import time
 
 IMG_SIZE = 224
 IMAGE_DIR = os.getcwd() + '/small_dataset'
-
 dataset = Dataset(IMAGE_DIR)
+imgs_labels = dataset.getDataset()
+# measuring time for getDataset()
+timeit.timeit(dataset.getDataset(), setup="gc.enable()", number=10000)
+
+log.info("getDataset time = ", (end - start))
 
 # Parameters of Logistic Regression
 BATCH_SIZE = 20
@@ -92,59 +98,59 @@ class ConvNet(object):
 
         # Convolution Layer 1
         conv1 = self.conv2d('conv1', _X, _weights['wc1'], _biases['bc1'], 4)
-        print "conv1.shape:", conv1.get_shape()
+        # log.info("conv1.shape: ", conv1.get_shape())
         # Max Pooling (down-sampling)
         pool1 = self.max_pool('pool1', conv1, k=3, s=2)
-        print "pool1.shape:", pool1.get_shape()
+        # log.info("pool1.shape:", pool1.get_shape())
         # Apply Normalization
         norm1 = self.norm('norm1', pool1, lsize=4)
-        print "norm1.shape:", norm1.get_shape()
+        # log.info("norm1.shape:", norm1.get_shape())
         # Apply Dropout
         dropout1 = tf.nn.dropout(norm1, _dropout)    
 
         # Convolution Layer 2
         conv2 = self.conv2d('conv2', dropout1, _weights['wc2'], _biases['bc2'], s=1)
-        print "conv2.shape:", conv2.get_shape()
+        # log.info("conv2.shape:", conv2.get_shape())
         # Max Pooling (down-sampling)
         pool2 = self.max_pool('pool2', conv2, k=3, s=2)
-        print "pool2.shape:", pool2.get_shape()
+        # log.info("pool2.shape:", pool2.get_shape())
         # Apply Normalization
         norm2 = self.norm('norm2', pool2, lsize=4)
-        print "norm2.shape:", norm2.get_shape()
+        # log.info("norm2.shape:", norm2.get_shape())
         # Apply Dropout
         dropout2 = tf.nn.dropout(norm2, _dropout)
-        print "dropout2.shape:", dropout2.get_shape()
+        # log.info("dropout2.shape:", dropout2.get_shape())
 
         # Convolution Layer 3
         conv3 = self.conv2d('conv3', dropout2, _weights['wc3'], _biases['bc3'], s=1)
-        print "conv3.shape:", conv3.get_shape()
+        # log.info("conv3.shape:", conv3.get_shape())
 
         # Convolution Layer 4
         conv4 = self.conv2d('conv4', conv3, _weights['wc4'], _biases['bc4'], s=1)
-        print "conv4.shape:", conv4.get_shape()
+        # log.info("conv4.shape:", conv4.get_shape())
 
         # Convolution Layer 5
         conv5 = self.conv2d('conv5', conv4, _weights['wc5'], _biases['bc5'], s=1)
-        print "conv5.shape:", conv5.get_shape()
+        # log.info("conv5.shape:", conv5.get_shape())
         pool5 = self.max_pool('pool5', conv5, k=3, s=2)
-        print "pool5.shape:", pool5.get_shape()
+        # log.info("pool5.shape:", pool5.get_shape())
 
         # Fully connected layer 1
         pool5_shape = pool5.get_shape().as_list()
         dense = tf.reshape(pool5, [-1, pool5_shape[1] * pool5_shape[2] * pool5_shape[3]])
-        print "dense.shape:", dense.get_shape()
+        # log.info("dense.shape:", dense.get_shape())
         fc1 = tf.nn.relu(tf.matmul(dense, _weights['wd']) + _biases['bd'], name='fc1')  # Relu activation
-        print "fc1.shape:", fc1.get_shape()
+        # log.info("fc1.shape:", fc1.get_shape())
         
         # Fully connected layer 2
         fc2 = tf.nn.relu(tf.matmul(fc1, _weights['wfc']) + _biases['bfc'], name='fc2')  # Relu activation
-        print "fc2.shape:", fc2.get_shape()
+        # log.info("fc2.shape:", fc2.get_shape())
 
         # Output, class prediction
         out = tf.matmul(fc2, _weights['out']) + _biases['out']
 
-        print "out.shape:", out.get_shape()
-        print "OUT = ", out
+        # log.info("out.shape:", out.get_shape())
+        # print("OUT = ", out)
         
         return out
 
@@ -154,7 +160,8 @@ class ConvNet(object):
         # Construct model
         pred = self.alex_net_model(self.img_pl, self.weights, self.biases, self.keep_prob)
 
-        # Define loss and optimizer
+# TO check # Define loss and optimizer
+# http://stackoverflow.com/questions/33922937/why-does-tensorflow-return-nan-nan-instead-of-probabilities-from-a-csv-file
         cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(pred, self.label_pl))
         optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(cost)
 
@@ -167,7 +174,6 @@ class ConvNet(object):
 
         # count total number of imgs
         img_count = dataset.getNumImages()
-        print("img_count = ", img_count)
 
         # Launch the graph
         with tf.Session() as sess:
@@ -177,13 +183,27 @@ class ConvNet(object):
 
             imgs = []
             labels = []
-            # get the dataset images and labels
-            for img, label in dataset.getDataset():
-                imgs.append(img)
-                labels.append(label)
 
-            print 'Dataset created - images list and labels list'
-            print 'Now split images and labels in Training and Test set...'
+            ## Maybe is better to put the following two lines in a method outside training()
+            ## and call it before training
+            
+            # convert the generator object returned from dataset.getDataset() in list of tuple
+            imgs_labels = list(imgs_labels)
+            # split list of tuple in images and labels lists
+            img, lab = zip(*imgs_labels)
+            
+            """
+            This is prefereable than this other two options
+
+            img = [x for x,_ in a]
+            lab = [x for _,x in a]
+
+            img = list(map(itemgetter(0), a))
+            lab = list(map(itemgetter(1), a))
+            """
+
+            log.info('Dataset created - images list and labels list')
+            log.info('Now split images and labels in Training and Test set...')
 
             idx = int(4 * img_count/5)
 
@@ -194,12 +214,12 @@ class ConvNet(object):
             test_labels  = labels[idx:img_count]
 
             # Run for epoch
-            for epoch in xrange(self.max_epochs):
+            for epoch in range(self.max_epochs):
                 avg_cost = 0.
-                num_batch = int(len(train_imgs)/BATCH_SIZE)
+                num_batch = int(len(train_imgs)/BATCH_SIZE) # 8
                 
                 # Loop over all batches
-                for step in xrange(num_batch):
+                for step in range(num_batch):
 
                     batch_imgs, batch_labels = self.nextBatch(train_imgs, train_labels, step, BATCH_SIZE)
 
@@ -212,12 +232,15 @@ class ConvNet(object):
                     # Display logs per epoch step
                     if step % self.display_step == 0:
                         print "Step %03d - Epoch %03d/%03d cost: %.9f - single %.9f" % (step, epoch, self.max_epochs, avg_cost/step, single_cost)
+                        log.info("Step %03d - Epoch %03d - cost: %.9f - single %.9f" % (step, epoch, avg_cost/step, single_cost))
                         # Calculate training batch accuracy
                         train_acc, train_loss = sess.run([accuracy, cost], feed_dict={self.img_pl: batch_imgs, self.label_pl: batch_labels, self.keep_prob: 1.})
                         # Calculate training batch loss
                         #train_loss = sess.run(cost, feed_dict={self.img_pl: batch_imgs, self.label_pl: batch_labels, self.keep_prob: 1.})
                         print "Training Accuracy = " + "{:.5f}".format(train_acc)
+                        log.info("Training Accuracy = " + "{:.5f}".format(train_acc))
                         print "Training Loss = " + "{:.6f}".format(train_loss)
+                        log.info("Training Loss = " + "{:.6f}".format(train_loss))
 
             print "Optimization Finished!"
 
@@ -227,7 +250,8 @@ class ConvNet(object):
 
             # Test accuracy
             test_acc = sess.run(accuracy, feed_dict={self.img_pl: test_imgs, self.label_pl: test_labels, self.keep_prob: 1.})
-            print " Test accuracy: %.3f" % (test_acc)
+            print "Test accuracy: %.3f" % (test_acc)
+            log.info("Test accuracy: %.3f" % (test_acc))
 
     def prediction(self, img_path):
         with tf.Session() as sess:
@@ -282,6 +306,7 @@ def main():
     display_step = int(sys.argv[3])
     std_dev = float(sys.argv[4])
 
+    log.basicConfig(filename='FileLog.log', level=log.INFO, format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
     
     # create the object ConvNet
     conv_net = ConvNet(learning_rate, max_epochs, display_step, std_dev)

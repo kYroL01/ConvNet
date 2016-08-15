@@ -9,12 +9,13 @@
 # 2) Alberi
 # 3) Gatti
 #
-# ================================================================================
+# ====================================================================
 import glob
 import os.path
 import sys
 import numpy as np
 import tensorflow as tf
+import logging as log
 
 
 IMG_SIZE = 224
@@ -49,8 +50,11 @@ class Dataset(object):
             tf.initialize_all_variables().run()
             
             for dirName in os.listdir(self.image_dir):
+                print(dirName)
+                log.info("Enter in directory %s" %dirName)
                 label = self.convLabels(dirName, index_offset, labels_one_hot)
                 path = os.path.join(self.image_dir, dirName)
+                log.info("Start processing images")
                 for img in os.listdir(path):
                     img_path = os.path.join(path, img)
                     if os.path.isfile(img_path) and (img.endswith('jpeg') or
@@ -60,11 +64,10 @@ class Dataset(object):
                         img_u8_eval = session.run(img_u8)
                         image = tf.image.convert_image_dtype(img_u8_eval, tf.float32)
                         img_padded_or_cropped = tf.image.resize_image_with_crop_or_pad(image, IMG_SIZE, IMG_SIZE)
-
                         img_padded_or_cropped = tf.reshape(img_padded_or_cropped, shape=[IMG_SIZE * IMG_SIZE, 3])
 
                         yield img_padded_or_cropped.eval(), np.array(label)
-    
+                log.info("End processing images")
     
     """
     Count total number of images
