@@ -182,7 +182,8 @@ class ConvNet(object):
             ## and call it before training
             
             # convert the generator object returned from dataset.getDataset() in list of tuple
-            global imgs_labels = list(imgs_labels)
+            global imgs_labels
+            imgs_labels = list(imgs_labels)
             # split list of tuple in images and labels lists
             img, lab = zip(*imgs_labels)
             
