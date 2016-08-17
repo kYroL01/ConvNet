@@ -10,17 +10,11 @@ IMG_SIZE = 224
 IMAGE_DIR = os.getcwd() + '/small_dataset'
 dataset = Dataset(IMAGE_DIR)
 imgs_labels = dataset.getDataset()
-# measuring time for getDataset()
-timeit.timeit(dataset.getDataset(), setup="gc.enable()", number=10000)
-
-log.info("getDataset time = ", (end - start))
+# TODO measuring time for getDataset()
+# ??? timeit.timeit(dataset.getDataset(), setup="gc.enable()", number=10000)
 
 # Parameters of Logistic Regression
 BATCH_SIZE = 20
-# learning_rate = 0.001
-# max_epochs = 10
-# display_step = 10
-# std_dev = 1.0  # This affects accuracy
 
 # Network Parameters
 n_input = IMG_SIZE**2
@@ -188,7 +182,7 @@ class ConvNet(object):
             ## and call it before training
             
             # convert the generator object returned from dataset.getDataset() in list of tuple
-            imgs_labels = list(imgs_labels)
+            global imgs_labels = list(imgs_labels)
             # split list of tuple in images and labels lists
             img, lab = zip(*imgs_labels)
             
