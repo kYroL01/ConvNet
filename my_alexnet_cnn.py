@@ -1,17 +1,13 @@
-from Dataset import Dataset
+import Dataset
 import os
 import sys
 import tensorflow as tf
 import numpy as np
 import logging as log
-import time
+import timeit
 
 IMG_SIZE = 224
 IMAGE_DIR = os.getcwd() + '/small_dataset'
-dataset = Dataset(IMAGE_DIR)
-imgs_labels = dataset.getDataset()
-# TODO measuring time for getDataset()
-# ??? timeit.timeit(dataset.getDataset(), setup="gc.enable()", number=10000)
 
 # Parameters of Logistic Regression
 BATCH_SIZE = 20
@@ -26,13 +22,14 @@ dropout = 0.8 # Dropout, probability to keep units
 class ConvNet(object):
 
     # Constructor
-    def __init__(self, learning_rate, max_epochs, display_step, std_dev):
+    def __init__(self, learning_rate, max_epochs, display_step, std_dev, imgs_labels):
 
         # Initialize params
         self.learning_rate=learning_rate
         self.max_epochs=max_epochs
         self.display_step=display_step
         self.std_dev=std_dev
+        self.imgs_labels=imgs_labels
         
         # Store layers weight & bias
         self.weights = {
@@ -181,12 +178,9 @@ class ConvNet(object):
             ## Maybe is better to put the following two lines in a method outside training()
             ## and call it before training
             
-            # convert the generator object returned from dataset.getDataset() in list of tuple
-            global imgs_labels
-            imgs_labels = list(imgs_labels)
             # split list of tuple in images and labels lists
-            img, lab = zip(*imgs_labels)
-            
+            imgs, labels = zip(*self.imgs_labels)
+
             """
             This is prefereable than this other two options
 
@@ -231,7 +225,7 @@ class ConvNet(object):
                         # Calculate training batch accuracy
                         train_acc, train_loss = sess.run([accuracy, cost], feed_dict={self.img_pl: batch_imgs, self.label_pl: batch_labels, self.keep_prob: 1.})
                         # Calculate training batch loss
-                        #train_loss = sess.run(cost, feed_dict={self.img_pl: batch_imgs, self.label_pl: batch_labels, self.keep_prob: 1.})
+                        train_loss = sess.run(cost, feed_dict={self.img_pl: batch_imgs, self.label_pl: batch_labels, self.keep_prob: 1.})
                         print "Training Accuracy = " + "{:.5f}".format(train_acc)
                         log.info("Training Accuracy = " + "{:.5f}".format(train_acc))
                         print "Training Loss = " + "{:.6f}".format(train_loss)
@@ -301,10 +295,18 @@ def main():
     display_step = int(sys.argv[3])
     std_dev = float(sys.argv[4])
 
-    log.basicConfig(filename='FileLog.log', level=log.INFO, format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+    log.basicConfig(filename='FileLog.log', level=log.INFO, format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', filemode="w")
+
+    # list of imgs and labels from getDataset()
+    imgs_labels = Dataset.getDataset(IMAGE_DIR)
+    # convert the generator object returned from dataset.getDataset() in list of tuple
+    imgs_labels = list(imgs_labels)
+    
+    t = timeit.timeit("Dataset.getDataset(IMAGE_DIR)", setup="from __main__ import *")
+    log.info("Execution time of Dataset.getDataset(IMAGE_DIR) (__main__) = %.4f sec" % t)
     
     # create the object ConvNet
-    conv_net = ConvNet(learning_rate, max_epochs, display_step, std_dev)
+    conv_net = ConvNet(learning_rate, max_epochs, display_step, std_dev, imgs_labels)
 
     # TRAINING
     conv_net.training()
