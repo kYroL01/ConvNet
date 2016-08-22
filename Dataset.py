@@ -32,7 +32,10 @@ LABELS_DICT = {
 """
 Convert labels from string to nparray of int
 """
-def convLabels(imageDir, index_offset, labels_one_hot):
+def convLabels(imageDir, num_labels):
+    
+    index_offset = np.arange(1) * num_labels
+    labels_one_hot = np.zeros((1, num_labels))
     labels_one_hot.flat[index_offset + np.array([LABELS_DICT[imageDir]])] = 1.0
     print("LABELS_ONE_HOT = ", labels_one_hot)
 
@@ -42,7 +45,7 @@ def convLabels(imageDir, index_offset, labels_one_hot):
 """
 Count total number of images
 """
-def getNumImages():
+def getNumImages(image_dir):
     count = 0
     for dirName, subdirList, fileList in os.walk(image_dir):
         for img in fileList:
@@ -56,8 +59,7 @@ Return the dataset as images and labels
 def getDataset(image_dir):
     with tf.Session() as session:
 
-        index_offset = np.arange(1) * len(LABELS_DICT)
-        labels_one_hot = np.zeros((1, len(LABELS_DICT)))
+        num_labels = len(LABELS_DICT)
 
         tf.initialize_all_variables().run()
 
@@ -65,7 +67,7 @@ def getDataset(image_dir):
         start = timer()
         for dirName in os.listdir(image_dir):
             start1 = timer()
-            label = convLabels(dirName, index_offset, labels_one_hot)
+            label = convLabels(dirName, num_labels)
             end1 = timer()
             log.info("Execution time of convLabels function = %.4f sec" % (end1-start1))
             path = os.path.join(image_dir, dirName)

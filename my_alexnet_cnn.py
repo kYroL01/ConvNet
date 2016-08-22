@@ -140,43 +140,52 @@ class ConvNet(object):
         # Output, class prediction
         out = tf.matmul(fc2, _weights['out']) + _biases['out']
 
-        # log.info("out.shape:", out.get_shape())
-        # print("OUT = ", out)
-        
+        # the softmax function is 
         return out
 
     # Method for training the model and testing its accuracy
     def training(self):
 
-        # Construct model
-        pred = self.alex_net_model(self.img_pl, self.weights, self.biases, self.keep_prob)
-
-# TO check # Define loss and optimizer
-# http://stackoverflow.com/questions/33922937/why-does-tensorflow-return-nan-nan-instead-of-probabilities-from-a-csv-file
-        cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(pred, self.label_pl))
-        optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(cost)
-
-        # Evaluate model
-        correct_pred = tf.equal(tf.argmax(pred,1), tf.argmax(self.label_pl,1))
-        accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
-
-        # Initializing the variables
-        init = tf.initialize_all_variables()
-
-        # count total number of imgs
-        img_count = dataset.getNumImages()
 
         # Launch the graph
-        with tf.Session() as sess:
-            sess.run(init)
+        with tf.Graph().as_default() as g_train
+            # Construct model
+            pred = self.alex_net_model(self.img_pl, self.weights, self.biases, self.keep_prob)
+
+            # TO check # Define loss and optimizer
+            # http://stackoverflow.com/questions/33922937/why-does-tensorflow-return-nan-nan-instead-of-probabilities-from-a-csv-file
+            # equivalent to
+            # tf.nn.softmax(...) + cross_entropy(...)
+            loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(pred, self.label_pl))
+            optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(loss)
+
+            # Evaluate model
+            correct_pred = tf.equal(tf.argmax(pred,1), tf.argmax(self.label_pl, 1))
+            accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
+
+            # Initializing the variables
+            init = tf.initialize_all_variables()
+
+            # Create a session
+            sess = tf.Session()
+
+            # count total number of imgs
+            img_count = Dataset.getNumImages(IMAGE_DIR)
+
             summary_writer = tf.train.SummaryWriter('/tmp/tf_logs/ConvNet', graph=sess.graph)
+
+            # Run the Op to initialize the variables.
+            sess.run(init)
             step = 0
 
             imgs = []
             labels = []
 
-            ## Maybe is better to put the following two lines in a method outside training()
-            ## and call it before training
+            ## Maybe is better to put the following piece of code in a method outside training()
+            ## and call it before training, or call with a separeted thread that process and convert a batch and pass to training
+            ## (find a way to parallel conversion and passing batch of images to training)
+
+            ##################################################################
             
             # split list of tuple in images and labels lists
             imgs, labels = zip(*self.imgs_labels)
@@ -202,30 +211,31 @@ class ConvNet(object):
             test_imgs    = imgs[idx:img_count]
             test_labels  = labels[idx:img_count]
 
+            ##################################################################
+
             # Run for epoch
             for epoch in range(self.max_epochs):
-                avg_cost = 0.
+                avg_loss = 0.
                 num_batch = int(len(train_imgs)/BATCH_SIZE) # 8
                 
                 # Loop over all batches
                 for step in range(num_batch):
 
+                    ### check nextbatch function ###
                     batch_imgs, batch_labels = self.nextBatch(train_imgs, train_labels, step, BATCH_SIZE)
 
                     # Fit training using batch data
                     # print("IMG_PL = ", self.img_pl.get_shape())
-                    _, single_cost = sess.run([optimizer, cost], feed_dict={self.img_pl: batch_imgs, self.label_pl: batch_labels, self.keep_prob: dropout})
+                    _, single_loss = sess.run([optimizer, loss], feed_dict={self.img_pl: batch_imgs, self.label_pl: batch_labels, self.keep_prob: dropout})
                     # Compute average loss
-                    avg_cost += single_cost
+                    avg_loss += single_loss
 
                     # Display logs per epoch step
                     if step % self.display_step == 0:
-                        print "Step %03d - Epoch %03d/%03d cost: %.9f - single %.9f" % (step, epoch, self.max_epochs, avg_cost/step, single_cost)
-                        log.info("Step %03d - Epoch %03d - cost: %.9f - single %.9f" % (step, epoch, avg_cost/step, single_cost))
-                        # Calculate training batch accuracy
-                        train_acc, train_loss = sess.run([accuracy, cost], feed_dict={self.img_pl: batch_imgs, self.label_pl: batch_labels, self.keep_prob: 1.})
-                        # Calculate training batch loss
-                        train_loss = sess.run(cost, feed_dict={self.img_pl: batch_imgs, self.label_pl: batch_labels, self.keep_prob: 1.})
+                        print "Step %03d - Epoch %03d/%03d loss: %.7f - single_loss %.7f" % (step, epoch, self.max_epochs, avg_loss/step, single_loss)
+                        log.info("Step %03d - Epoch %03d - loss: %.7f - single_loss %.7f" % (step, epoch, avg_loss/step, single_loss))
+                        # Calculate training batch accuracy and batch loss
+                        train_acc, train_loss = sess.run([accuracy, loss], feed_dict={self.img_pl: batch_imgs, self.label_pl: batch_labels, self.keep_prob: 1.})
                         print "Training Accuracy = " + "{:.5f}".format(train_acc)
                         log.info("Training Accuracy = " + "{:.5f}".format(train_acc))
                         print "Training Loss = " + "{:.6f}".format(train_loss)
