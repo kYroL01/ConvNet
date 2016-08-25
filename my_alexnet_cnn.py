@@ -22,14 +22,15 @@ dropout = 0.8 # Dropout, probability to keep units
 class ConvNet(object):
 
     # Constructor
-    def __init__(self, learning_rate, max_epochs, display_step, std_dev, imgs_labels):
+    def __init__(self, learning_rate, max_epochs, display_step, std_dev, images, labels):
 
         # Initialize params
         self.learning_rate=learning_rate
         self.max_epochs=max_epochs
         self.display_step=display_step
         self.std_dev=std_dev
-        self.imgs_labels=imgs_labels
+        self.images=images
+        self.labels=labels
         
         # Store layers weight & bias
         self.weights = {
@@ -66,11 +67,14 @@ class ConvNet(object):
         # Create a saver for writing training checkpoints.
         self.saver = tf.train.Saver()
 
-    # Return the next batch of size batch_size
-    def nextBatch(self, imgs, labels, step, batch_size):
-        s = step*batch_size
-        return imgs[s:s+batch_size], labels[s:s+batch_size]
+        
+    # Batch function - give the next batch of images and labels
+    def BatchIterator(self, images, labels, batch_size, step):
+            s = step*batch_size
+            print ("s = ", s)
+            yield images[s:s+batch_size], labels[s:s+batch_size]
 
+            
     """ 
     Create AlexNet model 
     """
@@ -145,10 +149,8 @@ class ConvNet(object):
 
     # Method for training the model and testing its accuracy
     def training(self):
-
-
         # Launch the graph
-        with tf.Graph().as_default() as g_train
+        with tf.Session() as sess:
             # Construct model
             pred = self.alex_net_model(self.img_pl, self.weights, self.biases, self.keep_prob)
 
@@ -166,67 +168,44 @@ class ConvNet(object):
             # Initializing the variables
             init = tf.initialize_all_variables()
 
-            # Create a session
-            sess = tf.Session()
-
-            # count total number of imgs
-            img_count = Dataset.getNumImages(IMAGE_DIR)
-
-            summary_writer = tf.train.SummaryWriter('/tmp/tf_logs/ConvNet', graph=sess.graph)
-
             # Run the Op to initialize the variables.
             sess.run(init)
+            summary_writer = tf.train.SummaryWriter('/tmp/tf_logs/ConvNet', graph=sess.graph)
             step = 0
-
-            imgs = []
-            labels = []
-
-            ## Maybe is better to put the following piece of code in a method outside training()
-            ## and call it before training, or call with a separeted thread that process and convert a batch and pass to training
-            ## (find a way to parallel conversion and passing batch of images to training)
-
-            ##################################################################
-            
-            # split list of tuple in images and labels lists
-            imgs, labels = zip(*self.imgs_labels)
-
-            """
-            This is prefereable than this other two options
-
-            img = [x for x,_ in a]
-            lab = [x for _,x in a]
-
-            img = list(map(itemgetter(0), a))
-            lab = list(map(itemgetter(1), a))
-            """
 
             log.info('Dataset created - images list and labels list')
             log.info('Now split images and labels in Training and Test set...')
 
+            # count total number of imgs
+            img_count = Dataset.getNumImages(IMAGE_DIR)
+
+            # index for num imgs of training set
             idx = int(4 * img_count/5)
 
             # Split images and labels
-            train_imgs = imgs[0:idx]
-            train_labels = labels[0:idx]
-            test_imgs    = imgs[idx:img_count]
-            test_labels  = labels[idx:img_count]
+            train_imgs = self.images[0:idx]
+            train_labels = self.labels[0:idx]
+            test_imgs    = self.images[idx:img_count]
+            test_labels  = self.labels[idx:img_count]
 
             ##################################################################
 
             # Run for epoch
             for epoch in range(self.max_epochs):
                 avg_loss = 0.
-                num_batch = int(len(train_imgs)/BATCH_SIZE) # 8
+                num_batch = (int(idx+1) / BATCH_SIZE) # 8
                 
                 # Loop over all batches
                 for step in range(num_batch):
 
-                    ### check nextbatch function ###
-                    batch_imgs, batch_labels = self.nextBatch(train_imgs, train_labels, step, BATCH_SIZE)
+                    ### create itrator over batch list ###
+                    iter_= self.BatchIterator(train_imgs, train_labels, BATCH_SIZE, step)
+                    ### call next() for next batch of imgs and labels ###
+                    batch_imgs_train, batch_labels_train = iter_.next()
+                    print("B I T = ", batch_labels_train)
 
                     # Fit training using batch data
-                    # print("IMG_PL = ", self.img_pl.get_shape())
-                    _, single_loss = sess.run([optimizer, loss], feed_dict={self.img_pl: batch_imgs, self.label_pl: batch_labels, self.keep_prob: dropout})
+                    _, single_loss = sess.run([optimizer, loss], feed_dict={self.img_pl: batch_imgs_train, self.label_pl: batch_labels_train, self.keep_prob: dropout})
                     # Compute average loss
                     avg_loss += single_loss
 
@@ -235,7 +214,7 @@ class ConvNet(object):
                         print "Step %03d - Epoch %03d/%03d loss: %.7f - single_loss %.7f" % (step, epoch, self.max_epochs, avg_loss/step, single_loss)
                         log.info("Step %03d - Epoch %03d - loss: %.7f - single_loss %.7f" % (step, epoch, avg_loss/step, single_loss))
                         # Calculate training batch accuracy and batch loss
-                        train_acc, train_loss = sess.run([accuracy, loss], feed_dict={self.img_pl: batch_imgs, self.label_pl: batch_labels, self.keep_prob: 1.})
+                        train_acc, train_loss = sess.run([accuracy, loss], feed_dict={self.img_pl: batch_imgs_train, self.label_pl: batch_labels_train, self.keep_prob: 1.})
                         print "Training Accuracy = " + "{:.5f}".format(train_acc)
                         log.info("Training Accuracy = " + "{:.5f}".format(train_acc))
                         print "Training Loss = " + "{:.6f}".format(train_loss)
@@ -248,9 +227,14 @@ class ConvNet(object):
             print("Model saved in file %s" % save_model_ckpt)
 
             # Test accuracy
-            test_acc = sess.run(accuracy, feed_dict={self.img_pl: test_imgs, self.label_pl: test_labels, self.keep_prob: 1.})
-            print "Test accuracy: %.3f" % (test_acc)
-            log.info("Test accuracy: %.3f" % (test_acc))
+            for step in range(num_batch):
+
+                ### nextbatch function for test ###
+                iter_= self.nextBatchIterator(test_imgs, test_labels, BATCH_SIZE)
+                batch_imgs_test, batch_labels_test = iter_.next()
+                test_acc = sess.run(accuracy, feed_dict={self.img_pl: batch_imgs_test, self.label_pl: batch_labels_test, self.keep_prob: 1.})
+                print "Test accuracy: %.3f" % (test_acc)
+                log.info("Test accuracy: %.3f" % (test_acc))
 
     def prediction(self, img_path):
         with tf.Session() as sess:
@@ -307,16 +291,18 @@ def main():
 
     log.basicConfig(filename='FileLog.log', level=log.INFO, format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', filemode="w")
 
-    # list of imgs and labels from getDataset()
-    imgs_labels = Dataset.getDataset(IMAGE_DIR)
-    # convert the generator object returned from dataset.getDataset() in list of tuple
-    imgs_labels = list(imgs_labels)
+    # generator object of imgs and labels from getDataset()
+    imgs_labels_gen = Dataset.getDataset(IMAGE_DIR)
     
+    # convert the generator object returned from dataset.getDataset() in list of tuple
+    imgs_labels = list(imgs_labels_gen)
+    images, labels = zip(*imgs_labels)
+
     t = timeit.timeit("Dataset.getDataset(IMAGE_DIR)", setup="from __main__ import *")
     log.info("Execution time of Dataset.getDataset(IMAGE_DIR) (__main__) = %.4f sec" % t)
     
     # create the object ConvNet
-    conv_net = ConvNet(learning_rate, max_epochs, display_step, std_dev, imgs_labels)
+    conv_net = ConvNet(learning_rate, max_epochs, display_step, std_dev, images, labels)
 
     # TRAINING
     conv_net.training()
