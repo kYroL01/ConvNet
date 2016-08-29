@@ -72,6 +72,7 @@ class ConvNet(object):
     def BatchIterator(self, images, labels, batch_size, step):
             s = step*batch_size
             print ("s = ", s)
+            print ("end = ", s+batch_size)
             yield images[s:s+batch_size], labels[s:s+batch_size]
 
             
@@ -184,16 +185,21 @@ class ConvNet(object):
 
             # Split images and labels
             train_imgs = self.images[0:idx]
+            print("len tr imgs = %d"%len(train_imgs))
             train_labels = self.labels[0:idx]
+            print("len tr lab = %d"%len(train_labels))
             test_imgs    = self.images[idx:img_count]
+            print("len tst imgs = %d"%len(test_imgs))
             test_labels  = self.labels[idx:img_count]
+            print("len tst lab = %d"%len(test_labels))
 
             ##################################################################
 
             # Run for epoch
             for epoch in range(self.max_epochs):
                 avg_loss = 0.
-                num_batch = (int(idx+1) / BATCH_SIZE) # 8
+                num_batch = ((idx+1) / BATCH_SIZE) # 8
+                print("num_batch %d "%num_batch)
                 
                 # Loop over all batches
                 for step in range(num_batch):
@@ -202,7 +208,6 @@ class ConvNet(object):
                     iter_= self.BatchIterator(train_imgs, train_labels, BATCH_SIZE, step)
                     ### call next() for next batch of imgs and labels ###
                     batch_imgs_train, batch_labels_train = iter_.next()
-                    print("B I T = ", batch_labels_train)
 
                     # Fit training using batch data
                     _, single_loss = sess.run([optimizer, loss], feed_dict={self.img_pl: batch_imgs_train, self.label_pl: batch_labels_train, self.keep_prob: dropout})
@@ -226,15 +231,18 @@ class ConvNet(object):
             save_model_ckpt = self.saver.save(sess, "/tmp/model.ckpt")
             print("Model saved in file %s" % save_model_ckpt)
 
+            #upgrade num_batch for test images number
+            num_batch = (len(test_imgs) / BATCH_SIZE) # 2
+
             # Test accuracy
             for step in range(num_batch):
 
                 ### nextbatch function for test ###
-                iter_= self.nextBatchIterator(test_imgs, test_labels, BATCH_SIZE)
+                iter_= self.BatchIterator(test_imgs, test_labels, BATCH_SIZE, step)
                 batch_imgs_test, batch_labels_test = iter_.next()
                 test_acc = sess.run(accuracy, feed_dict={self.img_pl: batch_imgs_test, self.label_pl: batch_labels_test, self.keep_prob: 1.})
-                print "Test accuracy: %.3f" % (test_acc)
-                log.info("Test accuracy: %.3f" % (test_acc))
+                print "Test accuracy: %.5f" % (test_acc)
+                log.info("Test accuracy: %.5f" % (test_acc))
 
     def prediction(self, img_path):
         with tf.Session() as sess:
