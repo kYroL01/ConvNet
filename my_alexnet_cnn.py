@@ -8,7 +8,8 @@ import timeit
 
 IMG_SIZE = 224
 IMAGE_DIR = os.getcwd() + '/small_dataset'
-
+CKPT_DIR = '/tmp/tf_logs/ConvNet'
+MODEL_CKPT = 
 # Parameters of Logistic Regression
 BATCH_SIZE = 20
 
@@ -142,28 +143,30 @@ class ConvNet(object):
         fc2 = tf.nn.relu(tf.matmul(fc1, _weights['wfc']) + _biases['bfc'], name='fc2')  # Relu activation
         # log.info("fc2.shape:", fc2.get_shape())
 
-        # Output, class prediction
+        # Output, class prediction LOGITS
         out = tf.matmul(fc2, _weights['out']) + _biases['out']
 
-        # the softmax function is 
-        return out
+        softmax_l = tf.nn.softmax(out)
+
+        # The function returns the Logits to be passed to softmax
+        return out, softmax_l
 
     # Method for training the model and testing its accuracy
     def training(self):
         # Launch the graph
         with tf.Session() as sess:
             # Construct model
-            pred = self.alex_net_model(self.img_pl, self.weights, self.biases, self.keep_prob)
+            logits, _ = self.alex_net_model(self.img_pl, self.weights, self.biases, self.keep_prob)
 
             # TO check # Define loss and optimizer
             # http://stackoverflow.com/questions/33922937/why-does-tensorflow-return-nan-nan-instead-of-probabilities-from-a-csv-file
             # equivalent to
             # tf.nn.softmax(...) + cross_entropy(...)
-            loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(pred, self.label_pl))
+            loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits, self.label_pl))
             optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(loss)
 
             # Evaluate model
-            correct_pred = tf.equal(tf.argmax(pred,1), tf.argmax(self.label_pl, 1))
+            correct_pred = tf.equal(tf.argmax(logits,1), tf.argmax(self.label_pl, 1))
             accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
             # Initializing the variables
@@ -171,7 +174,7 @@ class ConvNet(object):
 
             # Run the Op to initialize the variables.
             sess.run(init)
-            summary_writer = tf.train.SummaryWriter('/tmp/tf_logs/ConvNet', graph=sess.graph)
+            summary_writer = tf.train.SummaryWriter(CKPT_DIR, graph=sess.graph)
             step = 0
 
             log.info('Dataset created - images list and labels list')
@@ -228,7 +231,7 @@ class ConvNet(object):
             print "Optimization Finished!"
 
             # Save the models to disk
-            save_model_ckpt = self.saver.save(sess, "/tmp/model.ckpt")
+            save_model_ckpt = self.saver.save(sess, MODEL_CKPT)
             print("Model saved in file %s" % save_model_ckpt)
 
             #upgrade num_batch for test images number
@@ -248,7 +251,7 @@ class ConvNet(object):
         with tf.Session() as sess:
 
             # Construct model
-            pred = self.alex_net_model(self.img_pl, self.weights, self.biases, self.keep_prob)
+            _, pred = self.alex_net_model(self.img_pl, self.weights, self.biases, self.keep_prob)
 
             pred = tf.argmax(pred,1)
 
@@ -270,7 +273,7 @@ class ConvNet(object):
                 # Restore model.
                 ckpt = tf.train.get_checkpoint_state("/tmp/")
                 if(ckpt):
-                    self.saver.restore(sess, "/tmp/model.ckpt")
+                    self.saver.restore(sess, MODEL_CKPT)
                     print("Model restored")
                 else:
                     print "No model checkpoint found to restore - ERROR"
@@ -313,16 +316,16 @@ def main():
     conv_net = ConvNet(learning_rate, max_epochs, display_step, std_dev, images, labels)
 
     # TRAINING
-    conv_net.training()
+    # conv_net.training()
 
     # PREDICTION
-    # for dirName in os.listdir(IMAGE_DIR):
-    #     path = os.path.join(IMAGE_DIR, dirName)
-    #     for img in os.listdir(path):
-    #         print "reading image to classify... "
-    #         img_path = os.path.join(path, img)
-    #         conv_net.prediction(img_path)
-    #         print("IMG PATH = ", img_path)
+    for dirName in os.listdir(IMAGE_DIR):
+        path = os.path.join(IMAGE_DIR, dirName)
+        for img in os.listdir(path):
+            print "reading image to classify... "
+            img_path = os.path.join(path, img)
+            conv_net.prediction(img_path)
+            print("IMG PATH = ", img_path)
 
 
 if __name__ == '__main__':
