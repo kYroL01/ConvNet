@@ -9,7 +9,7 @@ import timeit
 IMG_SIZE = 224
 IMAGE_DIR = os.getcwd() + '/small_dataset'
 CKPT_DIR = '/tmp/tf_logs/ConvNet'
-MODEL_CKPT = 
+MODEL_CKPT = '/tmp/tf_logs/ConvNet/model.cktp'
 # Parameters of Logistic Regression
 BATCH_SIZE = 20
 
