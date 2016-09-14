@@ -203,7 +203,7 @@ class ConvNet(object):
                 avg_loss = 0.
                 num_batch = ((idx+1) / BATCH_SIZE) # 8
                 print("num_batch %d "%num_batch)
-qq                
+                
                 # Loop over all batches
                 for step in range(num_batch):
 
@@ -214,13 +214,10 @@ qq
 
                     # Fit training using batch data
                     _, single_loss = sess.run([optimizer, loss], feed_dict={self.img_pl: batch_imgs_train, self.label_pl: batch_labels_train, self.keep_prob: dropout})
-                    # Compute average loss
-                    avg_loss += single_loss
-
                     # Display logs per epoch step
                     if step % self.display_step == 0:
-                        # print "Step %03d - Epoch %03d/%03d loss: %.7f - single_loss %.7f" % (step, epoch, self.max_epochs, avg_loss/step, single_loss)
-                        # log.info("Step %03d - Epoch %03d - loss: %.7f - single_loss %.7f" % (step, epoch, avg_loss/step, single_loss))
+                        # print "Step %03d - Epoch %03d/%03d - single_loss %.7f" % (step, epoch, self.max_epochs, single_loss)
+                        # log.info("Step %03d - Epoch %03d - single_loss %.7f" % (step, epoch, avg_loss/step, single_loss))
                         # Calculate training batch accuracy and batch loss
                         train_acc, train_loss = sess.run([accuracy, loss], feed_dict={self.img_pl: batch_imgs_train, self.label_pl: batch_labels_train, self.keep_prob: 1.})
                         print "Training Accuracy = " + "{:.5f}".format(train_acc)
@@ -256,7 +253,7 @@ qq
             print "ConvNet prediction (in training) = ", classification
 
                 
-    def prediction(self, img_path):
+    def prediction(self):
         with tf.Session() as sess:
 
             # Construct model
@@ -264,37 +261,41 @@ qq
 
             prediction = tf.argmax(pred,1)
 
-            # check if image is a correct JPG file
-            if(os.path.isfile(img_path) and (img_path.endswith('jpeg') or
-                                             (img_path.endswith('jpg')))):
-                # Read image and convert it
-                img_bytes = tf.read_file(img_path)
-                img_u8 = tf.image.decode_jpeg(img_bytes, channels=3)
-                #img_u8 = tf.image.decode_jpeg(img_bytes, channels=1)
-                img_u8_eval = sess.run(img_u8)
-                image = tf.image.convert_image_dtype(img_u8_eval, tf.float32)
-                img_padded_or_cropped = tf.image.resize_image_with_crop_or_pad(image, IMG_SIZE, IMG_SIZE)
-                img_padded_or_cropped = tf.reshape(img_padded_or_cropped, shape=[IMG_SIZE*IMG_SIZE, 3])
-                #img_padded_or_cropped = tf.reshape(img_padded_or_cropped, shape=[IMG_SIZE * IMG_SIZE])
-                # eval
-                img_eval = img_padded_or_cropped.eval()
-
-                # Restore model.
-                ckpt = tf.train.get_checkpoint_state("/tmp/")
-                if(ckpt):
-                    self.saver.restore(sess, MODEL_CKPT)
-                    print("Model restored")
-                else:
-                    print "No model checkpoint found to restore - ERROR"
-                    return
-
-                # Run the model to get predictions
-                predict = sess.run(prediction, feed_dict={self.img_pl: [img_eval], self.keep_prob: 1.})
-                print "ConvNet prediction = ", predict
-
+            # Restore model.
+            ckpt = tf.train.get_checkpoint_state("/tmp/")
+            if(ckpt):
+                self.saver.restore(sess, MODEL_CKPT)
+                print("Model restored")
             else:
-                print "ERROR IMAGE"
+                print "No model checkpoint found to restore - ERROR"
+                return
 
+            for dirName in os.listdir(IMAGE_DIR):
+                path = os.path.join(IMAGE_DIR, dirName)
+                for img in os.listdir(path):
+                    print "reading image to classify... "
+                    img_path = os.path.join(path, img)
+                    print("IMG PATH = ", img_path)
+                    # check if image is a correct JPG file
+                    if(os.path.isfile(img_path) and (img_path.endswith('jpeg') or
+                                                     (img_path.endswith('jpg')))):
+                        # Read image and convert it
+                        img_bytes = tf.read_file(img_path)
+                        img_u8 = tf.image.decode_jpeg(img_bytes, channels=3)
+                        #img_u8 = tf.image.decode_jpeg(img_bytes, channels=1)
+                        img_u8_eval = sess.run(img_u8)
+                        image = tf.image.convert_image_dtype(img_u8_eval, tf.float32)
+                        img_padded_or_cropped = tf.image.resize_image_with_crop_or_pad(image, IMG_SIZE, IMG_SIZE)
+                        img_padded_or_cropped = tf.reshape(img_padded_or_cropped, shape=[IMG_SIZE*IMG_SIZE, 3])
+                        #img_padded_or_cropped = tf.reshape(img_padded_or_cropped, shape=[IMG_SIZE * IMG_SIZE])
+                        # eval
+                        img_eval = img_padded_or_cropped.eval()
+                        # Run the model to get predictions
+                        predict = sess.run(prediction, feed_dict={self.img_pl: [img_eval], self.keep_prob: 1.})
+                        print "ConvNet prediction = ", predict
+
+                    else:
+                        print "ERROR IMAGE"
 
 ### MAIN ###
 def main():
@@ -328,13 +329,7 @@ def main():
     conv_net.training()
 
     # PREDICTION
-    for dirName in os.listdir(IMAGE_DIR):
-        path = os.path.join(IMAGE_DIR, dirName)
-        for img in os.listdir(path):
-            print "reading image to classify... "
-            img_path = os.path.join(path, img)
-            conv_net.prediction(img_path)
-            print("IMG PATH = ", img_path)
+    conv_net.prediction()
 
 
 if __name__ == '__main__':
