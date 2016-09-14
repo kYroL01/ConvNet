@@ -156,7 +156,7 @@ class ConvNet(object):
         # Launch the graph
         with tf.Session() as sess:
             # Construct model
-            logits, _ = self.alex_net_model(self.img_pl, self.weights, self.biases, self.keep_prob)
+            logits, prediction = self.alex_net_model(self.img_pl, self.weights, self.biases, self.keep_prob)
 
             # TO check # Define loss and optimizer
             # http://stackoverflow.com/questions/33922937/why-does-tensorflow-return-nan-nan-instead-of-probabilities-from-a-csv-file
@@ -166,7 +166,7 @@ class ConvNet(object):
             optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(loss)
 
             # Evaluate model
-            correct_pred = tf.equal(tf.argmax(logits,1), tf.argmax(self.label_pl, 1))
+            correct_pred = tf.equal(tf.argmax(prediction,1), tf.argmax(self.label_pl, 1))
             accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
             # Initializing the variables
@@ -203,7 +203,7 @@ class ConvNet(object):
                 avg_loss = 0.
                 num_batch = ((idx+1) / BATCH_SIZE) # 8
                 print("num_batch %d "%num_batch)
-                
+qq                
                 # Loop over all batches
                 for step in range(num_batch):
 
@@ -219,8 +219,8 @@ class ConvNet(object):
 
                     # Display logs per epoch step
                     if step % self.display_step == 0:
-                        print "Step %03d - Epoch %03d/%03d loss: %.7f - single_loss %.7f" % (step, epoch, self.max_epochs, avg_loss/step, single_loss)
-                        log.info("Step %03d - Epoch %03d - loss: %.7f - single_loss %.7f" % (step, epoch, avg_loss/step, single_loss))
+                        # print "Step %03d - Epoch %03d/%03d loss: %.7f - single_loss %.7f" % (step, epoch, self.max_epochs, avg_loss/step, single_loss)
+                        # log.info("Step %03d - Epoch %03d - loss: %.7f - single_loss %.7f" % (step, epoch, avg_loss/step, single_loss))
                         # Calculate training batch accuracy and batch loss
                         train_acc, train_loss = sess.run([accuracy, loss], feed_dict={self.img_pl: batch_imgs_train, self.label_pl: batch_labels_train, self.keep_prob: 1.})
                         print "Training Accuracy = " + "{:.5f}".format(train_acc)
@@ -229,6 +229,8 @@ class ConvNet(object):
                         log.info("Training Loss = " + "{:.6f}".format(train_loss))
 
             print "Optimization Finished!"
+
+            print "Accuracy = ", sess.run(accuracy, feed_dict={self.img_pl: batch_imgs_train, self.label_pl: batch_labels_train, self.keep_prob: 1.})
 
             # Save the models to disk
             save_model_ckpt = self.saver.save(sess, MODEL_CKPT)
@@ -247,13 +249,18 @@ class ConvNet(object):
                 print "Test accuracy: %.5f" % (test_acc)
                 log.info("Test accuracy: %.5f" % (test_acc))
 
+            # Classification
+            classification = sess.run(tf.argmax(prediction,1), feed_dict={x: [test_imgs[0]]})
+            print "ConvNet prediction (in training) = ", classification
+
+                
     def prediction(self, img_path):
         with tf.Session() as sess:
 
             # Construct model
             _, pred = self.alex_net_model(self.img_pl, self.weights, self.biases, self.keep_prob)
 
-            pred = tf.argmax(pred,1)
+            prediction = tf.argmax(pred,1)
 
             # check if image is a correct JPG file
             if(os.path.isfile(img_path) and (img_path.endswith('jpeg') or
@@ -280,8 +287,8 @@ class ConvNet(object):
                     return
 
                 # Run the model to get predictions
-                predict = sess.run(pred, feed_dict={self.img_pl: [img_eval], self.keep_prob: 1.})
-                print predict
+                predict = sess.run(prediction, feed_dict={self.img_pl: [img_eval], self.keep_prob: 1.})
+                print "ConvNet prediction = ", predict
 
             else:
                 print "ERROR IMAGE"
@@ -316,7 +323,7 @@ def main():
     conv_net = ConvNet(learning_rate, max_epochs, display_step, std_dev, images, labels)
 
     # TRAINING
-    # conv_net.training()
+    conv_net.training()
 
     # PREDICTION
     for dirName in os.listdir(IMAGE_DIR):
