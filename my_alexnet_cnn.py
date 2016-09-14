@@ -230,7 +230,7 @@ qq
 
             print "Optimization Finished!"
 
-            print "Accuracy = ", sess.run(accuracy, feed_dict={self.img_pl: batch_imgs_train, self.label_pl: batch_labels_train, self.keep_prob: 1.})
+            print "Accuracy = ", sess.run(accuracy, feed_dict={self.img_pl: batch_imgs_train, self.label_pl: batch_labels_train, self.keep_prob: 1.0})
 
             # Save the models to disk
             save_model_ckpt = self.saver.save(sess, MODEL_CKPT)
@@ -245,12 +245,14 @@ qq
                 ### nextbatch function for test ###
                 iter_= self.BatchIterator(test_imgs, test_labels, BATCH_SIZE, step)
                 batch_imgs_test, batch_labels_test = iter_.next()
-                test_acc = sess.run(accuracy, feed_dict={self.img_pl: batch_imgs_test, self.label_pl: batch_labels_test, self.keep_prob: 1.})
+                test_acc = sess.run(accuracy, feed_dict={self.img_pl: batch_imgs_test, self.label_pl: batch_labels_test, self.keep_prob: 1.0})
                 print "Test accuracy: %.5f" % (test_acc)
                 log.info("Test accuracy: %.5f" % (test_acc))
 
-            # Classification
-            classification = sess.run(tf.argmax(prediction,1), feed_dict={x: [test_imgs[0]]})
+            # Classification (two images as example)
+            classification = sess.run(tf.argmax(prediction,1), feed_dict={self.img_pl: [test_imgs[0]], self.keep_prob: 1.0})
+            print "ConvNet prediction (in training) = ", classification
+            classification = sess.run(tf.argmax(prediction,1), feed_dict={self.img_pl: [test_imgs[22]], self.keep_prob: 1.0})
             print "ConvNet prediction (in training) = ", classification
 
                 
@@ -267,13 +269,13 @@ qq
                                              (img_path.endswith('jpg')))):
                 # Read image and convert it
                 img_bytes = tf.read_file(img_path)
-                #img_u8 = tf.image.decode_jpeg(img_bytes, channels=3)
-                img_u8 = tf.image.decode_jpeg(img_bytes, channels=1)
+                img_u8 = tf.image.decode_jpeg(img_bytes, channels=3)
+                #img_u8 = tf.image.decode_jpeg(img_bytes, channels=1)
                 img_u8_eval = sess.run(img_u8)
                 image = tf.image.convert_image_dtype(img_u8_eval, tf.float32)
                 img_padded_or_cropped = tf.image.resize_image_with_crop_or_pad(image, IMG_SIZE, IMG_SIZE)
-                #img_padded_or_cropped = tf.reshape(img_padded_or_cropped, shape=[IMG_SIZE*IMG_SIZE, 3])
-                img_padded_or_cropped = tf.reshape(img_padded_or_cropped, shape=[IMG_SIZE * IMG_SIZE])
+                img_padded_or_cropped = tf.reshape(img_padded_or_cropped, shape=[IMG_SIZE*IMG_SIZE, 3])
+                #img_padded_or_cropped = tf.reshape(img_padded_or_cropped, shape=[IMG_SIZE * IMG_SIZE])
                 # eval
                 img_eval = img_padded_or_cropped.eval()
 
