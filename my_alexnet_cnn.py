@@ -23,15 +23,14 @@ dropout = 0.8 # Dropout, probability to keep units
 class ConvNet(object):
 
     # Constructor
-    def __init__(self, learning_rate, max_epochs, display_step, std_dev, images, labels):
+    def __init__(self, learning_rate, max_epochs, display_step, std_dev, gen_imgs_lab):
 
         # Initialize params
         self.learning_rate=learning_rate
         self.max_epochs=max_epochs
         self.display_step=display_step
         self.std_dev=std_dev
-        self.images=images
-        self.labels=labels
+        self.gen_imgs_lab = gen_imgs_lab
         
         # Store layers weight & bias
         self.weights = {
@@ -70,11 +69,14 @@ class ConvNet(object):
 
         
     # Batch function - give the next batch of images and labels
-    def BatchIterator(self, images, labels, batch_size, step):
-            s = step*batch_size
-            print ("s = ", s)
-            print ("end = ", s+batch_size)
-            yield images[s:s+batch_size], labels[s:s+batch_size]
+    def BatchIterator(self, batch_size):
+        imgs = []
+        labels = []
+        for i in range(batch_size):
+            img, label = self.gen_imgs_lab.next()
+            imgs.append(img)
+            labels.append(label)
+        return imgs, labels
 
             
     """ 
@@ -180,37 +182,22 @@ class ConvNet(object):
             log.info('Dataset created - images list and labels list')
             log.info('Now split images and labels in Training and Test set...')
 
-            # count total number of imgs
-            img_count = Dataset.getNumImages(IMAGE_DIR)
-
-            # index for num imgs of training set
-            idx = int(4 * img_count/5)
-
-            # Split images and labels
-            train_imgs = self.images[0:idx]
-            print("len tr imgs = %d"%len(train_imgs))
-            train_labels = self.labels[0:idx]
-            print("len tr lab = %d"%len(train_labels))
-            test_imgs    = self.images[idx:img_count]
-            print("len tst imgs = %d"%len(test_imgs))
-            test_labels  = self.labels[idx:img_count]
-            print("len tst lab = %d"%len(test_labels))
 
             ##################################################################
 
             # Run for epoch
             for epoch in range(self.max_epochs):
                 avg_loss = 0.
-                num_batch = ((idx+1) / BATCH_SIZE) # 8
+                num_batch = 8
                 print("num_batch %d "%num_batch)
                 
                 # Loop over all batches
                 for step in range(num_batch):
 
                     ### create itrator over batch list ###
-                    iter_= self.BatchIterator(train_imgs, train_labels, BATCH_SIZE, step)
-                    ### call next() for next batch of imgs and labels ###
-                    batch_imgs_train, batch_labels_train = iter_.next()
+                    batch_imgs_train, batch_labels_train = self.BatchIterator(BATCH_SIZE)
+                    # ### call next() for next batch of imgs and labels ###
+                    # batch_imgs_train, batch_labels_train = iter_.next()
 
                     # Fit training using batch data
                     _, single_loss = sess.run([optimizer, loss], feed_dict={self.img_pl: batch_imgs_train, self.label_pl: batch_labels_train, self.keep_prob: dropout})
@@ -240,8 +227,7 @@ class ConvNet(object):
             for step in range(num_batch):
 
                 ### nextbatch function for test ###
-                iter_= self.BatchIterator(test_imgs, test_labels, BATCH_SIZE, step)
-                batch_imgs_test, batch_labels_test = iter_.next()
+                batch_imgs_test, batch_labels_test = self.BatchIterator(test_imgs, test_labels, BATCH_SIZE, step)
                 test_acc = sess.run(accuracy, feed_dict={self.img_pl: batch_imgs_test, self.label_pl: batch_labels_test, self.keep_prob: 1.0})
                 print "Test accuracy: %.5f" % (test_acc)
                 log.info("Test accuracy: %.5f" % (test_acc))
@@ -314,16 +300,12 @@ def main():
 
     # generator object of imgs and labels from getDataset()
     imgs_labels_gen = Dataset.getDataset(IMAGE_DIR)
-    
-    # convert the generator object returned from dataset.getDataset() in list of tuple
-    imgs_labels = list(imgs_labels_gen)
-    images, labels = zip(*imgs_labels)
 
     t = timeit.timeit("Dataset.getDataset(IMAGE_DIR)", setup="from __main__ import *")
     log.info("Execution time of Dataset.getDataset(IMAGE_DIR) (__main__) = %.4f sec" % t)
     
     # create the object ConvNet
-    conv_net = ConvNet(learning_rate, max_epochs, display_step, std_dev, images, labels)
+    conv_net = ConvNet(learning_rate, max_epochs, display_step, std_dev, imgs_labels_gen)
 
     # TRAINING
     conv_net.training()
