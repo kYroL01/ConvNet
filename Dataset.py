@@ -17,10 +17,13 @@ import numpy as np
 import tensorflow as tf
 import logging as log
 from timeit import default_timer as timer
-
+import cPickle as pickle
+import gzip
 
 IMG_SIZE = 224
 
+
+# TODO: dynamic is better
 LABELS_DICT = {
     'Cani': 0,
     'Cavalli': 1,
@@ -43,7 +46,7 @@ def getNumImages(image_dir):
 """
 Return the dataset as images and labels
 """
-def getDataset(image_dir):
+def convertDataset(image_dir):
 
     num_labels = len(LABELS_DICT)
     label = np.eye(num_labels)  # Convert labels to one-hot-vector
@@ -71,7 +74,21 @@ def getDataset(image_dir):
                 image = tf.image.convert_image_dtype(img_u8_eval, tf.float32)
                 img_padded_or_cropped = tf.image.resize_image_with_crop_or_pad(image, IMG_SIZE, IMG_SIZE)
                 img_padded_or_cropped = tf.reshape(img_padded_or_cropped, shape=[IMG_SIZE * IMG_SIZE, 3])
-
                 yield img_padded_or_cropped.eval(session=session), label_i
     end = timer()
     log.info("End processing images (Dataset.py) - Time = %.2f sec" % (end-start))
+
+
+def saveDataset(image_dir, file_path):
+    with gzip.open(file_path, 'wb') as file:
+        for img, label in convertDataset(image_dir):
+            pickle.dump((img, label), file)
+            
+
+def loadDataset(file_path):
+    with gzip.open(file_path) as file:
+        while True:
+            try:
+                yield pickle.load(file)
+            except EOFError:
+                break
