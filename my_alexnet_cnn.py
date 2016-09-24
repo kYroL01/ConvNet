@@ -5,9 +5,11 @@ import tensorflow as tf
 import numpy as np
 import logging as log
 import timeit
+import argparse
 
 IMG_SIZE = 224
-IMAGE_DIR = os.getcwd() + '/small_dataset'
+#IMAGE_DIR = os.getcwd() + '/small_dataset'
+IMAGE_DIR = os.getcwd() + '/full_dataset'
 CKPT_DIR = '/tmp/tf_logs/ConvNet'
 MODEL_CKPT = '/tmp/tf_logs/ConvNet/model.cktp'
 # Parameters of Logistic Regression
@@ -286,33 +288,52 @@ class ConvNet(object):
 ### MAIN ###
 def main():
 
-    # args from command line:
-    # 1) learning_rate
-    # 2) max_epochs
-    # 3) display_step
-    # 4) std_dev
-    learning_rate = float(sys.argv[1])
-    max_epochs = int(sys.argv[2])
-    display_step = int(sys.argv[3])
-    std_dev = float(sys.argv[4])
+    parser = argparse.ArgumentParser(description='A convolutional neural network for image recognition')
+    subparsers = parser.add_subparsers()
+
+    common_args = [
+        (['-lr', '--learning-rate'], {'help':'learning rate', 'type':float, 'default':0.1}),
+        (['-e', '--epochs'], {'help':'epochs', 'type':int, 'default':50}),
+        (['-ds', '--display-step'], {'help':'display step', 'type':int, 'default':10}),
+        (['-sd', '--std-dev'], {'help':'std-dev', 'type':float, 'default':1.0})
+    ]
+
+    parser_train = subparsers.add_parser('train')
+    parser_train.set_defaults(which='train')
+    for arg in common_args:
+        parser_train.add_argument(*arg[0], **arg[1])
+    parser_train.add_argument('-d', '--dataset', help='dataset file', type=str, default='images_dataset.pkl')
+
+    parser_preprocess = subparsers.add_parser('preprocessing')
+    parser_preprocess.set_defaults(which='preprocessing')
+    parser_preprocess.add_argument('-f', '--file', help='output file', type=str, default='images_dataset.pkl')
+
+
+    parser_predict = subparsers.add_parser('predict')
+    parser_predict.set_defaults(which='predict')
+    for arg in common_args:
+        parser_predict.add_argument(*arg[0], **arg[1])
+
+    args = parser.parse_args()
 
     log.basicConfig(filename='FileLog.log', level=log.INFO, format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', filemode="w")
 
-    # generator object of imgs and labels from getDataset()
-    imgs_labels_gen = Dataset.getDataset(IMAGE_DIR)
 
-    t = timeit.timeit("Dataset.getDataset(IMAGE_DIR)", setup="from __main__ import *")
-    log.info("Execution time of Dataset.getDataset(IMAGE_DIR) (__main__) = %.4f sec" % t)
-    
-    # create the object ConvNet
-    conv_net = ConvNet(learning_rate, max_epochs, display_step, std_dev, imgs_labels_gen)
-
-    # TRAINING
-    conv_net.training()
-
-    # PREDICTION
-    conv_net.prediction()
-
+    if args.which in ('train', 'predict'):
+        t = timeit.timeit("Dataset.loadDataset(IMAGE_DIR)", setup="from __main__ import *")
+        log.info("Execution time of Dataset.loadDataset(IMAGE_DIR) (__main__) = %.4f sec" % t)
+        # generator object of imgs and labels from getDataset()
+        imgs_labels_gen = Dataset.loadDataset(args.file)
+        # create the object ConvNet
+        conv_net = ConvNet(ars.learning_rate, args.epochs, args.display_step, args.std_dev, imgs_labels_gen)
+        if args.which == 'train':
+            # TRAINING
+            conv_net.training()
+        else:
+            # PREDICTION
+            conv_net.prediction()
+    elif args.which == 'preprocessing':
+        Dataset.saveDataset(IMAGE_DIR, args.file)
 
 if __name__ == '__main__':
     main()
