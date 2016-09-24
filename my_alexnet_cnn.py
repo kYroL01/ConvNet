@@ -5,9 +5,11 @@ import tensorflow as tf
 import numpy as np
 import logging as log
 import timeit
+import argparse
 
 IMG_SIZE = 224
 IMAGE_DIR = os.getcwd() + '/small_dataset'
+#IMAGE_DIR = os.getcwd() + '/full_dataset'
 CKPT_DIR = '/tmp/tf_logs/ConvNet'
 MODEL_CKPT = '/tmp/tf_logs/ConvNet/model.cktp'
 # Parameters of Logistic Regression
@@ -72,11 +74,16 @@ class ConvNet(object):
     def BatchIterator(self, batch_size):
         imgs = []
         labels = []
-        for i in range(batch_size):
-            img, label = self.gen_imgs_lab.next()
+            
+        for img, label in self.gen_imgs_lab:
             imgs.append(img)
             labels.append(label)
-        return imgs, labels
+            if len(imgs) == batch_size:
+                yield imgs, labels
+                imgs = []
+                labels = []
+        if len(imgs) > 0:
+            yield imgs, labels
 
             
     """ 
@@ -177,7 +184,6 @@ class ConvNet(object):
             # Run the Op to initialize the variables.
             sess.run(init)
             summary_writer = tf.train.SummaryWriter(CKPT_DIR, graph=sess.graph)
-            step = 0
 
             log.info('Dataset created - images list and labels list')
             log.info('Now split images and labels in Training and Test set...')
@@ -185,17 +191,17 @@ class ConvNet(object):
 
             ##################################################################
 
+            # collect imgs for test
+            tests_imgs_batches = [b for i, b in enumerate(self.BatchIterator(BATCH_SIZE)) if i < 3]
+
             # Run for epoch
             for epoch in range(self.max_epochs):
-                avg_loss = 0.
-                num_batch = 8
-                print("num_batch %d "%num_batch)
-                
                 # Loop over all batches
-                for step in range(num_batch):
-
+                #for step in range(num_batch):
+                for step, elems in enumerate(self.BatchIterator(BATCH_SIZE)):
+                    elems = batch_imgs_train, batch_labels_train
                     ### create itrator over batch list ###
-                    batch_imgs_train, batch_labels_train = self.BatchIterator(BATCH_SIZE)
+                    #batch_imgs_train, batch_labels_train = self.BatchIterator(BATCH_SIZE)
                     # ### call next() for next batch of imgs and labels ###
                     # batch_imgs_train, batch_labels_train = iter_.next()
 
@@ -214,29 +220,25 @@ class ConvNet(object):
 
             print "Optimization Finished!"
 
-            print "Accuracy = ", sess.run(accuracy, feed_dict={self.img_pl: batch_imgs_train, self.label_pl: batch_labels_train, self.keep_prob: 1.0})
+            #print "Accuracy = ", sess.run(accuracy, feed_dict={self.img_pl: batch_imgs_train, self.label_pl: batch_labels_train, self.keep_prob: 1.0})
 
             # Save the models to disk
             save_model_ckpt = self.saver.save(sess, MODEL_CKPT)
             print("Model saved in file %s" % save_model_ckpt)
 
-            #upgrade num_batch for test images number
-            num_batch = (len(test_imgs) / BATCH_SIZE) # 2
-
             # Test accuracy
-            for step in range(num_batch):
-
-                ### nextbatch function for test ###
-                batch_imgs_test, batch_labels_test = self.BatchIterator(test_imgs, test_labels, BATCH_SIZE, step)
+            for step, elems in enumerate(tests_imgs_batches):
+                batch_imgs_test, batch_labels_test = elems
+                
                 test_acc = sess.run(accuracy, feed_dict={self.img_pl: batch_imgs_test, self.label_pl: batch_labels_test, self.keep_prob: 1.0})
                 print "Test accuracy: %.5f" % (test_acc)
                 log.info("Test accuracy: %.5f" % (test_acc))
 
-            # Classification (two images as example)
-            classification = sess.run(tf.argmax(prediction,1), feed_dict={self.img_pl: [test_imgs[0]], self.keep_prob: 1.0})
-            print "ConvNet prediction (in training) = ", classification
-            classification = sess.run(tf.argmax(prediction,1), feed_dict={self.img_pl: [test_imgs[22]], self.keep_prob: 1.0})
-            print "ConvNet prediction (in training) = ", classification
+            # # Classification (two images as example)
+            # classification = sess.run(tf.argmax(prediction,1), feed_dict={self.img_pl: [test_imgs[0]], self.keep_prob: 1.0})
+            # print "ConvNet prediction (in training) = ", classification
+            # classification = sess.run(tf.argmax(prediction,1), feed_dict={self.img_pl: [test_imgs[22]], self.keep_prob: 1.0})
+            # print "ConvNet prediction (in training) = ", classification
 
                 
     def prediction(self):
@@ -286,33 +288,52 @@ class ConvNet(object):
 ### MAIN ###
 def main():
 
-    # args from command line:
-    # 1) learning_rate
-    # 2) max_epochs
-    # 3) display_step
-    # 4) std_dev
-    learning_rate = float(sys.argv[1])
-    max_epochs = int(sys.argv[2])
-    display_step = int(sys.argv[3])
-    std_dev = float(sys.argv[4])
+    parser = argparse.ArgumentParser(description='A convolutional neural network for image recognition')
+    subparsers = parser.add_subparsers()
+
+    common_args = [
+        (['-lr', '--learning-rate'], {'help':'learning rate', 'type':float, 'default':0.1}),
+        (['-e', '--epochs'], {'help':'epochs', 'type':int, 'default':5}),
+        (['-ds', '--display-step'], {'help':'display step', 'type':int, 'default':10}),
+        (['-sd', '--std-dev'], {'help':'std-dev', 'type':float, 'default':1.0}),
+        (['-d', '--dataset'],  {'help':'dataset file', 'type':str, 'default':'images_dataset.pkl'})
+    ]
+
+    parser_train = subparsers.add_parser('train')
+    parser_train.set_defaults(which='train')
+    for arg in common_args:
+        parser_train.add_argument(*arg[0], **arg[1])
+
+    parser_preprocess = subparsers.add_parser('preprocessing')
+    parser_preprocess.set_defaults(which='preprocessing')
+    parser_preprocess.add_argument('-f', '--file', help='output file', type=str, default='images_dataset.pkl')
+
+
+    parser_predict = subparsers.add_parser('predict')
+    parser_predict.set_defaults(which='predict')
+    for arg in common_args:
+        parser_predict.add_argument(*arg[0], **arg[1])
+
+    args = parser.parse_args()
 
     log.basicConfig(filename='FileLog.log', level=log.INFO, format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', filemode="w")
 
-    # generator object of imgs and labels from getDataset()
-    imgs_labels_gen = Dataset.getDataset(IMAGE_DIR)
 
-    t = timeit.timeit("Dataset.getDataset(IMAGE_DIR)", setup="from __main__ import *")
-    log.info("Execution time of Dataset.getDataset(IMAGE_DIR) (__main__) = %.4f sec" % t)
-    
-    # create the object ConvNet
-    conv_net = ConvNet(learning_rate, max_epochs, display_step, std_dev, imgs_labels_gen)
-
-    # TRAINING
-    conv_net.training()
-
-    # PREDICTION
-    conv_net.prediction()
-
+    if args.which in ('train', 'predict'):
+        t = timeit.timeit("Dataset.loadDataset(IMAGE_DIR)", setup="from __main__ import *")
+        log.info("Execution time of Dataset.loadDataset(IMAGE_DIR) (__main__) = %.4f sec" % t)
+        # generator object of imgs and labels from getDataset()
+        imgs_labels_gen = Dataset.loadDataset(args.dataset)
+        # create the object ConvNet
+        conv_net = ConvNet(args.learning_rate, args.epochs, args.display_step, args.std_dev, imgs_labels_gen)
+        if args.which == 'train':
+            # TRAINING
+            conv_net.training()
+        else:
+            # PREDICTION
+            conv_net.prediction()
+    elif args.which == 'preprocessing':
+        Dataset.saveDataset(IMAGE_DIR, args.file)
 
 if __name__ == '__main__':
     main()
