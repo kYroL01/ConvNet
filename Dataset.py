@@ -24,17 +24,11 @@ IMG_SIZE = 224
 
 
 # TODO: dynamic is better
-# LABELS_DICT = {
-#     'Cani': 0,
-#     'Cavalli': 1,
-#     'Alberi': 2,
-#     'Gatti': 3,
-# }
-
 LABELS_DICT = {
-    'vNonPornDifficulty': 0,
-    'vNonPornEasy': 1,
-    'vPorn': 2,
+    'Cani': 0,
+    'Cavalli': 1,
+    'Alberi': 2,
+    'Gatti': 3,
 }
 
 
@@ -72,7 +66,6 @@ def convertDataset(image_dir):
         path = os.path.join(image_dir, dirName)
         for img in os.listdir(path):
             img_path = os.path.join(path, img)
-            print img_path
             if os.path.isfile(img_path) and (img.endswith('jpeg') or
                                              (img.endswith('jpg'))):
                 img_bytes = tf.read_file(img_path)
