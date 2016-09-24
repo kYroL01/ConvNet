@@ -88,5 +88,7 @@ def saveDataset(image_dir, file_path):
 def loadDataset(file_path):
     with gzip.open(file_path) as file:
         while True:
-            yield pickle.load(file)
-
+            try:
+                yield pickle.load(file)
+            except EOFError:
+                break
