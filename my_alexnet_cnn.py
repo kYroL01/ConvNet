@@ -25,14 +25,15 @@ dropout = 0.8 # Dropout, probability to keep units
 class ConvNet(object):
 
     # Constructor
-    def __init__(self, learning_rate, max_epochs, display_step, std_dev, gen_imgs_lab):
+    def __init__(self, learning_rate, max_epochs, display_step, std_dev, dataset):
 
         # Initialize params
         self.learning_rate=learning_rate
         self.max_epochs=max_epochs
         self.display_step=display_step
         self.std_dev=std_dev
-        self.gen_imgs_lab = gen_imgs_lab
+        self.dataset = dataset
+        self.gen_imgs_lab = Dataset.loadDataset(dataset)
         
         # Store layers weight & bias
         self.weights = {
@@ -196,10 +197,11 @@ class ConvNet(object):
 
             # Run for epoch
             for epoch in range(self.max_epochs):
+                self.gen_imgs_lab = Dataset.loadDataset(self.dataset)
                 # Loop over all batches
                 #for step in range(num_batch):
                 for step, elems in enumerate(self.BatchIterator(BATCH_SIZE)):
-                    elems = batch_imgs_train, batch_labels_train
+                    batch_imgs_train, batch_labels_train = elems
                     ### create itrator over batch list ###
                     #batch_imgs_train, batch_labels_train = self.BatchIterator(BATCH_SIZE)
                     # ### call next() for next batch of imgs and labels ###
@@ -322,10 +324,9 @@ def main():
     if args.which in ('train', 'predict'):
         t = timeit.timeit("Dataset.loadDataset(IMAGE_DIR)", setup="from __main__ import *")
         log.info("Execution time of Dataset.loadDataset(IMAGE_DIR) (__main__) = %.4f sec" % t)
-        # generator object of imgs and labels from getDataset()
-        imgs_labels_gen = Dataset.loadDataset(args.dataset)
+
         # create the object ConvNet
-        conv_net = ConvNet(args.learning_rate, args.epochs, args.display_step, args.std_dev, imgs_labels_gen)
+        conv_net = ConvNet(args.learning_rate, args.epochs, args.display_step, args.std_dev, args.dataset)
         if args.which == 'train':
             # TRAINING
             conv_net.training()
