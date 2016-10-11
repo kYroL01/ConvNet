@@ -169,7 +169,7 @@ class ConvNet(object):
 
             # tf.nn.softmax(...) + cross_entropy(...)
             loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits, self.label_pl))
-            optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(loss)
+            optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate, epsilon=0.1).minimize(loss)
 
             # Evaluate model
             correct_pred = tf.equal(tf.argmax(prediction,1), tf.argmax(self.label_pl, 1))
