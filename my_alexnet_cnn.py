@@ -9,7 +9,6 @@ import argparse
 
 IMG_SIZE = 224
 IMAGE_DIR = os.getcwd() + '/small_dataset'
-#IMAGE_DIR = os.getcwd() + '/full_dataset'
 CKPT_DIR = '/tmp/tf_logs/ConvNet'
 MODEL_CKPT = '/tmp/tf_logs/ConvNet/model.cktp'
 # Parameters of Logistic Regression
@@ -168,9 +167,6 @@ class ConvNet(object):
             # Construct model
             logits, prediction = self.alex_net_model(self.img_pl, self.weights, self.biases, self.keep_prob)
 
-            # TO check # Define loss and optimizer
-            # http://stackoverflow.com/questions/33922937/why-does-tensorflow-return-nan-nan-instead-of-probabilities-from-a-csv-file
-            # equivalent to
             # tf.nn.softmax(...) + cross_entropy(...)
             loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits, self.label_pl))
             optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(loss)
@@ -199,20 +195,16 @@ class ConvNet(object):
             for epoch in range(self.max_epochs):
                 self.gen_imgs_lab = Dataset.loadDataset(self.dataset)
                 # Loop over all batches
-                #for step in range(num_batch):
                 for step, elems in enumerate(self.BatchIterator(BATCH_SIZE)):
+                    
+                    ### from itrator return batch lists ###
                     batch_imgs_train, batch_labels_train = elems
-                    ### create itrator over batch list ###
-                    #batch_imgs_train, batch_labels_train = self.BatchIterator(BATCH_SIZE)
-                    # ### call next() for next batch of imgs and labels ###
-                    # batch_imgs_train, batch_labels_train = iter_.next()
 
                     # Fit training using batch data
                     _, single_loss = sess.run([optimizer, loss], feed_dict={self.img_pl: batch_imgs_train, self.label_pl: batch_labels_train, self.keep_prob: dropout})
                     # Display logs per epoch step
                     if step % self.display_step == 0:
                         # print "Step %03d - Epoch %03d/%03d - single_loss %.7f" % (step, epoch, self.max_epochs, single_loss)
-                        # log.info("Step %03d - Epoch %03d - single_loss %.7f" % (step, epoch, avg_loss/step, single_loss))
                         # Calculate training batch accuracy and batch loss
                         train_acc, train_loss = sess.run([accuracy, loss], feed_dict={self.img_pl: batch_imgs_train, self.label_pl: batch_labels_train, self.keep_prob: 1.})
                         print "Training Accuracy = " + "{:.5f}".format(train_acc)
@@ -236,13 +228,7 @@ class ConvNet(object):
                 print "Test accuracy: %.5f" % (test_acc)
                 log.info("Test accuracy: %.5f" % (test_acc))
 
-            # # Classification (two images as example)
-            # classification = sess.run(tf.argmax(prediction,1), feed_dict={self.img_pl: [test_imgs[0]], self.keep_prob: 1.0})
-            # print "ConvNet prediction (in training) = ", classification
-            # classification = sess.run(tf.argmax(prediction,1), feed_dict={self.img_pl: [test_imgs[22]], self.keep_prob: 1.0})
-            # print "ConvNet prediction (in training) = ", classification
-
-                
+    
     def prediction(self):
         with tf.Session() as sess:
 
@@ -294,7 +280,7 @@ def main():
     subparsers = parser.add_subparsers()
 
     common_args = [
-        (['-lr', '--learning-rate'], {'help':'learning rate', 'type':float, 'default':0.1}),
+        (['-lr', '--learning-rate'], {'help':'learning rate', 'type':float, 'default':0.001}),
         (['-e', '--epochs'], {'help':'epochs', 'type':int, 'default':5}),
         (['-ds', '--display-step'], {'help':'display step', 'type':int, 'default':10}),
         (['-sd', '--std-dev'], {'help':'std-dev', 'type':float, 'default':1.0}),
