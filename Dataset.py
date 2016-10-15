@@ -4,10 +4,10 @@
 # ======================= DATASET ====================================
 #
 # Categories:
-# 0) Cani
-# 1) Cavalli
-# 2) Alberi
-# 3) Gatti
+# 3) Cani
+# 2) Cavalli
+# 1) Alberi
+# 0) Gatti
 #
 # ====================================================================
 import glob
@@ -25,10 +25,10 @@ IMG_SIZE = 224
 
 # TODO: dynamic is better
 LABELS_DICT = {
-    'Cani': 0,
-    'Cavalli': 1,
-    'Alberi': 2,
-    'Gatti': 3,
+    'Cani': 3,
+    'Cavalli': 2,
+    'Alberi': 1,
+    'Gatti': 0,
 }
 
 
