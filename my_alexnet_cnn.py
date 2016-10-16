@@ -7,8 +7,11 @@ import logging as log
 import timeit
 import argparse
 
-IMG_SIZE = 224
+from Dataset import IMG_SIZE
+from Dataset import LABELS_DICT
+
 IMAGE_DIR = os.getcwd() + '/small_dataset'
+#TO_PREDICT_DIR = os.getcwd() + '/to_predict'
 CKPT_DIR = '/tmp/tf_logs/ConvNet'
 MODEL_CKPT = '/tmp/tf_logs/ConvNet/model.cktp'
 # Parameters of Logistic Regression
@@ -268,7 +271,7 @@ class ConvNet(object):
                         img_eval = img_padded_or_cropped.eval()
                         # Run the model to get predictions
                         predict = sess.run(prediction, feed_dict={self.img_pl: [img_eval], self.keep_prob: 1.})
-                        print "ConvNet prediction = ", predict
+                        print "ConvNet prediction = %s" % (LABELS_DICT.keys()[LABELS_DICT.values().index(predict)]) # Print the name of class predicted
 
                     else:
                         print "ERROR IMAGE"

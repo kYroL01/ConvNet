@@ -20,15 +20,18 @@ from timeit import default_timer as timer
 import cPickle as pickle
 import gzip
 
+
+## GLOBAL VARIABLES ##
+global IMG_SIZE
 IMG_SIZE = 224
 
-
 # TODO: dynamic is better
+global LABELS_DICT
 LABELS_DICT = {
-    'Cani': 3,
-    'Cavalli': 2,
-    'Alberi': 1,
-    'Gatti': 0,
+        'Cani': 3,
+        'Cavalli': 2,
+        'Alberi': 1,
+        'Gatti': 0,
 }
 
 
