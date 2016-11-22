@@ -15,7 +15,7 @@ IMAGE_DIR = os.getcwd() + '/small_dataset'
 CKPT_DIR = '/tmp/tf_logs/ConvNet'
 MODEL_CKPT = '/tmp/tf_logs/ConvNet/model.cktp'
 # Parameters of Logistic Regression
-BATCH_SIZE = 20
+BATCH_SIZE = 64
 
 # Network Parameters
 n_input = IMG_SIZE**2
@@ -39,25 +39,25 @@ class ConvNet(object):
         
         # Store layers weight & bias
         self.weights = {
-            'wc1': tf.Variable(tf.random_normal([11, 11, 3, 96], stddev=std_dev)),
-            'wc2': tf.Variable(tf.random_normal([5, 5, 96, 192], stddev=std_dev)),
-            'wc3': tf.Variable(tf.random_normal([3, 3, 192, 384], stddev=std_dev)),
-            'wc4': tf.Variable(tf.random_normal([3, 3, 384, 384], stddev=std_dev)),
-            'wc5': tf.Variable(tf.random_normal([3, 3, 384, 256], stddev=std_dev)),
-            
-            'wd': tf.Variable(tf.random_normal([12544, 4096])),
+            'wc1': tf.Variable(tf.random_normal([11, 11, 3, BATCH_SIZE], stddev=std_dev)),
+            'wc2': tf.Variable(tf.random_normal([5, 5, BATCH_SIZE, BATCH_SIZE*2], stddev=std_dev)),
+            'wc3': tf.Variable(tf.random_normal([3, 3, BATCH_SIZE*2, BATCH_SIZE*4], stddev=std_dev)),
+            'wc4': tf.Variable(tf.random_normal([3, 3, BATCH_SIZE*4, BATCH_SIZE*4], stddev=std_dev)),
+            'wc5': tf.Variable(tf.random_normal([3, 3, BATCH_SIZE*4, 256], stddev=std_dev)),
+
+            'wd': tf.Variable(tf.random_normal([1024, 4096])),
             'wfc': tf.Variable(tf.random_normal([4096, 1024], stddev=std_dev)),
-            
+
             'out': tf.Variable(tf.random_normal([1024, n_classes], stddev=std_dev))
         }
-        
+
         self.biases = {
-            'bc1': tf.Variable(tf.random_normal([96])),
-            'bc2': tf.Variable(tf.random_normal([192])),
-            'bc3': tf.Variable(tf.random_normal([384])),
-            'bc4': tf.Variable(tf.random_normal([384])),
+            'bc1': tf.Variable(tf.random_normal([BATCH_SIZE])),
+            'bc2': tf.Variable(tf.random_normal([BATCH_SIZE*2])),
+            'bc3': tf.Variable(tf.random_normal([BATCH_SIZE*4])),
+            'bc4': tf.Variable(tf.random_normal([BATCH_SIZE*4])),
             'bc5': tf.Variable(tf.random_normal([256])),
-            
+
             'bd': tf.Variable(tf.random_normal([4096])),
             'bfc': tf.Variable(tf.random_normal([1024])),
 
@@ -103,57 +103,67 @@ class ConvNet(object):
 
     def alex_net_model(self, _X, _weights, _biases, _dropout):
         # Reshape input picture
+
         _X = tf.reshape(_X, shape=[-1, IMG_SIZE, IMG_SIZE, 3])
 
         # Convolution Layer 1
         conv1 = self.conv2d('conv1', _X, _weights['wc1'], _biases['bc1'], 4)
-        # log.info("conv1.shape: ", conv1.get_shape())
+        print "conv1.shape: ", conv1.get_shape()
         # Max Pooling (down-sampling)
         pool1 = self.max_pool('pool1', conv1, k=3, s=2)
-        # log.info("pool1.shape:", pool1.get_shape())
+        print "pool1.shape:", pool1.get_shape()
         # Apply Normalization
         norm1 = self.norm('norm1', pool1, lsize=4)
-        # log.info("norm1.shape:", norm1.get_shape())
+        print "norm1.shape:", norm1.get_shape()
         # Apply Dropout
-        dropout1 = tf.nn.dropout(norm1, _dropout)    
+        dropout1 = tf.nn.dropout(norm1, _dropout)
 
         # Convolution Layer 2
         conv2 = self.conv2d('conv2', dropout1, _weights['wc2'], _biases['bc2'], s=1)
-        # log.info("conv2.shape:", conv2.get_shape())
+        print "conv2.shape:", conv2.get_shape()
         # Max Pooling (down-sampling)
         pool2 = self.max_pool('pool2', conv2, k=3, s=2)
-        # log.info("pool2.shape:", pool2.get_shape())
+        print "pool2.shape:", pool2.get_shape()
         # Apply Normalization
         norm2 = self.norm('norm2', pool2, lsize=4)
-        # log.info("norm2.shape:", norm2.get_shape())
+        print "norm2.shape:", norm2.get_shape()
         # Apply Dropout
         dropout2 = tf.nn.dropout(norm2, _dropout)
-        # log.info("dropout2.shape:", dropout2.get_shape())
+        print "dropout2.shape:", dropout2.get_shape()
 
         # Convolution Layer 3
         conv3 = self.conv2d('conv3', dropout2, _weights['wc3'], _biases['bc3'], s=1)
-        # log.info("conv3.shape:", conv3.get_shape())
+        print "conv3.shape:", conv3.get_shape()
+
+        pool3 = self.max_pool('pool3', conv3, k=3, s=2)
+        norm3 = self.norm('norm3', pool3, lsize=4)
+        dropout3 = tf.nn.dropout(norm3, _dropout)
 
         # Convolution Layer 4
-        conv4 = self.conv2d('conv4', conv3, _weights['wc4'], _biases['bc4'], s=1)
-        # log.info("conv4.shape:", conv4.get_shape())
+        conv4 = self.conv2d('conv4', dropout3, _weights['wc4'], _biases['bc4'], s=1)
+        print "conv4.shape:", conv4.get_shape()
+
+        pool4 = self.max_pool('pool4', conv4, k=3, s=2)
+        norm4 = self.norm('norm4', pool4, lsize=4)
+        dropout4 = tf.nn.dropout(norm4, _dropout)
 
         # Convolution Layer 5
-        conv5 = self.conv2d('conv5', conv4, _weights['wc5'], _biases['bc5'], s=1)
-        # log.info("conv5.shape:", conv5.get_shape())
+        conv5 = self.conv2d('conv5', dropout4, _weights['wc5'], _biases['bc5'], s=1)
+        print "conv5.shape:", conv5.get_shape()
+
         pool5 = self.max_pool('pool5', conv5, k=3, s=2)
-        # log.info("pool5.shape:", pool5.get_shape())
+        print "pool5.shape:", pool5.get_shape()
 
         # Fully connected layer 1
         pool5_shape = pool5.get_shape().as_list()
         dense = tf.reshape(pool5, [-1, pool5_shape[1] * pool5_shape[2] * pool5_shape[3]])
-        # log.info("dense.shape:", dense.get_shape())
+        print "dense.shape:", dense.get_shape()
         fc1 = tf.nn.relu(tf.matmul(dense, _weights['wd']) + _biases['bd'], name='fc1')  # Relu activation
-        # log.info("fc1.shape:", fc1.get_shape())
-        
+        print "fc1.shape:", fc1.get_shape()
+
         # Fully connected layer 2
         fc2 = tf.nn.relu(tf.matmul(fc1, _weights['wfc']) + _biases['bfc'], name='fc2')  # Relu activation
-        # log.info("fc2.shape:", fc2.get_shape())
+        print "fc2.shape:", fc2.get_shape()
 
         # Output, class prediction LOGITS
         out = tf.matmul(fc2, _weights['out']) + _biases['out']
@@ -175,7 +185,8 @@ class ConvNet(object):
             optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate, epsilon=0.1).minimize(loss)
 
             # Evaluate model
-            correct_pred = tf.equal(tf.argmax(prediction,1), tf.argmax(self.label_pl, 1))
+            print logits.get_shape(), self.label_pl.get_shape()
+            correct_pred = tf.equal(tf.argmax(logits,1), tf.argmax(self.label_pl, 1))
             accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
             # Initializing the variables
@@ -196,28 +207,19 @@ class ConvNet(object):
 
             # Run for epoch
             for epoch in range(self.max_epochs):
+                log.info('Epoch %s' % epoch)
                 self.gen_imgs_lab = Dataset.loadDataset(self.dataset)
+                
                 # Loop over all batches
                 for step, elems in enumerate(self.BatchIterator(BATCH_SIZE)):
                     
                     ### from itrator return batch lists ###
                     batch_imgs_train, batch_labels_train = elems
-
-                    # Fit training using batch data
-                    _, single_loss = sess.run([optimizer, loss], feed_dict={self.img_pl: batch_imgs_train, self.label_pl: batch_labels_train, self.keep_prob: dropout})
-                    # Display logs per epoch step
-                    if step % self.display_step == 0:
-                        # print "Step %03d - Epoch %03d/%03d - single_loss %.7f" % (step, epoch, self.max_epochs, single_loss)
-                        # Calculate training batch accuracy and batch loss
-                        train_acc, train_loss = sess.run([accuracy, loss], feed_dict={self.img_pl: batch_imgs_train, self.label_pl: batch_labels_train, self.keep_prob: 1.})
-                        print "Training Accuracy = " + "{:.5f}".format(train_acc)
-                        log.info("Training Accuracy = " + "{:.5f}".format(train_acc))
-                        print "Training Loss = " + "{:.6f}".format(train_loss)
-                        log.info("Training Loss = " + "{:.6f}".format(train_loss))
-
+                    _, train_acc, train_loss, train_logits = sess.run([optimizer, accuracy, loss, logits], feed_dict={self.img_pl: batch_imgs_train, self.label_pl: batch$
+                    log.info("Training Accuracy = " + "{:.5f}".format(train_acc))
+                    log.info("Training Loss = " + "{:.6f}".format(train_loss))
+                    
             print "Optimization Finished!"
-
-            #print "Accuracy = ", sess.run(accuracy, feed_dict={self.img_pl: batch_imgs_train, self.label_pl: batch_labels_train, self.keep_prob: 1.0})
 
             # Save the models to disk
             save_model_ckpt = self.saver.save(sess, MODEL_CKPT)
@@ -297,8 +299,9 @@ def main():
 
     parser_preprocess = subparsers.add_parser('preprocessing')
     parser_preprocess.set_defaults(which='preprocessing')
-    parser_preprocess.add_argument('-f', '--file', help='output file', type=str, default='images_dataset.pkl')
-
+    parser_preprocess.add_argument('-f', '--file', help='output file', type=str, default='images_dataset.pkl.shuffle')
+    parser_preprocess.add_argument('-s', '--shuffle', help='shuffle dataset', action='store_true')
+    parser_preprocess.set_defaults(shuffle=False)
 
     parser_predict = subparsers.add_parser('predict')
     parser_predict.set_defaults(which='predict')
@@ -312,19 +315,21 @@ def main():
 
     if args.which in ('train', 'predict'):
         t = timeit.timeit("Dataset.loadDataset(IMAGE_DIR)", setup="from __main__ import *")
-        log.info("Execution time of Dataset.loadDataset(IMAGE_DIR) (__main__) = %.4f sec" % t)
 
         # create the object ConvNet
         conv_net = ConvNet(args.learning_rate, args.epochs, args.display_step, args.std_dev, args.dataset)
         if args.which == 'train':
             # TRAINING
+            log.info('Start training')                                                                                                  
             conv_net.training()
         else:
             # PREDICTION
             conv_net.prediction()
     elif args.which == 'preprocessing':
-        Dataset.saveDataset(IMAGE_DIR, args.file)
+            if args.shuffle:
+                shuffle(args.file)
+            else:
+                Dataset.saveDataset(IMAGE_DIR, args.file)
 
 if __name__ == '__main__':
     main()
-    
