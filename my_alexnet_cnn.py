@@ -39,7 +39,7 @@ class ConvNet(object):
         
         # Store layers weight & bias
         self.weights = {
-            'wc1': tf.Variable(tf.random_normal([11, 11, 3, BATCH_SIZE], stddev=std_dev)),
+            'wc1': tf.Variable(tf.random_normal([11, 11, n_channels, BATCH_SIZE], stddev=std_dev)),
             'wc2': tf.Variable(tf.random_normal([5, 5, BATCH_SIZE, BATCH_SIZE*2], stddev=std_dev)),
             'wc3': tf.Variable(tf.random_normal([3, 3, BATCH_SIZE*2, BATCH_SIZE*4], stddev=std_dev)),
             'wc4': tf.Variable(tf.random_normal([3, 3, BATCH_SIZE*4, BATCH_SIZE*4], stddev=std_dev)),
