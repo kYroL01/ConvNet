@@ -28,10 +28,10 @@ IMG_SIZE = 224
 # TODO: dynamic is better
 global LABELS_DICT
 LABELS_DICT = {
-        'Cani': 3,
-        'Cavalli': 2,
-        'Alberi': 1,
-        'Gatti': 0,
+    'Cani': 3,
+    'Cavalli': 2,
+    'Alberi': 1,
+    'Gatti': 0,
 }
 
 
@@ -95,3 +95,8 @@ def loadDataset(file_path):
                 yield pickle.load(file)
             except EOFError:
                 break
+
+def saveShuffle(l, file_path='images_shuffle.pkl'):
+    with gzip.open(file_path, 'wb') as file:
+        for img, label in l:
+            pickle.dump((img, label), file)

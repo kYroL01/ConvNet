@@ -11,15 +11,15 @@ from Dataset import IMG_SIZE
 from Dataset import LABELS_DICT
 
 IMAGE_DIR = os.getcwd() + '/small_dataset'
-#TO_PREDICT_DIR = os.getcwd() + '/to_predict'
-CKPT_DIR = '/tmp/tf_logs/ConvNet'
-MODEL_CKPT = '/tmp/tf_logs/ConvNet/model.cktp'
+PREDICT_IMAGE_DIR = os.getcwd() + '/test_dataset'
+CKPT_DIR = 'ckpt_dir'
+MODEL_CKPT = 'ckpt_dir/model.cktp'
 # Parameters of Logistic Regression
 BATCH_SIZE = 64
 
 # Network Parameters
 n_input = IMG_SIZE**2
-n_classes = 4 
+n_classes = 4
 n_channels = 3
 dropout = 0.8 # Dropout, probability to keep units
 
@@ -215,7 +215,7 @@ class ConvNet(object):
                     
                     ### from itrator return batch lists ###
                     batch_imgs_train, batch_labels_train = elems
-                    _, train_acc, train_loss, train_logits = sess.run([optimizer, accuracy, loss, logits], feed_dict={self.img_pl: batch_imgs_train, self.label_pl: batch$
+                    _, train_acc, train_loss, train_logits = sess.run([optimizer, accuracy, loss, logits], feed_dict={self.img_pl: batch_imgs_train, self.label_pl: batch_labels_train, self.keep_prob: 1.0})
                     log.info("Training Accuracy = " + "{:.5f}".format(train_acc))
                     log.info("Training Loss = " + "{:.6f}".format(train_loss))
                     
@@ -243,7 +243,7 @@ class ConvNet(object):
             prediction = tf.argmax(pred,1)
 
             # Restore model.
-            ckpt = tf.train.get_checkpoint_state("/tmp/")
+            ckpt = tf.train.get_checkpoint_state("ckpt_dir")
             if(ckpt):
                 self.saver.restore(sess, MODEL_CKPT)
                 print("Model restored")
@@ -251,8 +251,8 @@ class ConvNet(object):
                 print "No model checkpoint found to restore - ERROR"
                 return
 
-            for dirName in os.listdir(IMAGE_DIR):
-                path = os.path.join(IMAGE_DIR, dirName)
+            for dirName in os.listdir(PREDICT_IMAGE_DIR):
+                path = os.path.join(PREDICT_IMAGE_DIR, dirName)
                 for img in os.listdir(path):
                     print "reading image to classify... "
                     img_path = os.path.join(path, img)
@@ -281,6 +281,8 @@ class ConvNet(object):
 ### MAIN ###
 def main():
 
+    numpy.random.seed(7)
+
     parser = argparse.ArgumentParser(description='A convolutional neural network for image recognition')
     subparsers = parser.add_subparsers()
 
@@ -292,17 +294,20 @@ def main():
         (['-d', '--dataset'],  {'help':'dataset file', 'type':str, 'default':'images_dataset.pkl'})
     ]
 
+    # parser train
     parser_train = subparsers.add_parser('train')
     parser_train.set_defaults(which='train')
     for arg in common_args:
         parser_train.add_argument(*arg[0], **arg[1])
 
+    # parser preprocessing
     parser_preprocess = subparsers.add_parser('preprocessing')
     parser_preprocess.set_defaults(which='preprocessing')
-    parser_preprocess.add_argument('-f', '--file', help='output file', type=str, default='images_dataset.pkl.shuffle')
+    parser_preprocess.add_argument('-f', '--file', help='output file', type=str, default='images_dataset.pkl')
     parser_preprocess.add_argument('-s', '--shuffle', help='shuffle dataset', action='store_true')
     parser_preprocess.set_defaults(shuffle=False)
 
+    # parser predict
     parser_predict = subparsers.add_parser('predict')
     parser_predict.set_defaults(which='predict')
     for arg in common_args:
@@ -325,11 +330,14 @@ def main():
         else:
             # PREDICTION
             conv_net.prediction()
+    # PREPROCESSING
     elif args.which == 'preprocessing':
-            if args.shuffle:
-                shuffle(args.file)
-            else:
-                Dataset.saveDataset(IMAGE_DIR, args.file)
+        if args.shuffle: # shuffle dataset already converted
+            l = [i for i in Dataset.loadDataset('images_dataset.pkl')]
+            np.random.shuffle(l)
+            Dataset.saveShuffle(l)
+        else: # create dataset from images
+            Dataset.saveDataset(IMAGE_DIR, args.file)
 
 if __name__ == '__main__':
     main()
