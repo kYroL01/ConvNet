@@ -281,7 +281,7 @@ class ConvNet(object):
 ### MAIN ###
 def main():
 
-    numpy.random.seed(7)
+    np.random.seed(7)
 
     parser = argparse.ArgumentParser(description='A convolutional neural network for image recognition')
     subparsers = parser.add_subparsers()
