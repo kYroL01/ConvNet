@@ -16,17 +16,13 @@ import sys
 import numpy as np
 import tensorflow as tf
 import logging as log
-from timeit import default_timer as timer
 import cPickle as pickle
 import gzip
+from timeit import default_timer as timer
 
 
-## GLOBAL VARIABLES ##
-global IMG_SIZE
 IMG_SIZE = 224
 
-# TODO: dynamic is better
-global LABELS_DICT
 LABELS_DICT = {
     'Cani': 3,
     'Cavalli': 2,
@@ -45,7 +41,6 @@ def getNumImages(image_dir):
             count += 1
     return count
 
-
 """
 Return the dataset as images and labels
 """
@@ -56,7 +51,7 @@ def convertDataset(image_dir):
     i = 0
     
     session = tf.Session()
-    init = tf.initialize_all_variables()
+    init = tf.global_variables_initializer()
     session.run(init)
 
     log.info("Start processing images (Dataset.py) ")
@@ -96,7 +91,7 @@ def loadDataset(file_path):
             except EOFError:
                 break
 
-def saveShuffle(l, file_path='images_shuffle.pkl'):
+def saveShuffle(l, file_path='images_shuffled.pkl'):
     with gzip.open(file_path, 'wb') as file:
         for img, label in l:
             pickle.dump((img, label), file)
