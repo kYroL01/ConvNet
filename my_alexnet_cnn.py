@@ -318,7 +318,7 @@ class ConvNet(object):
                 print(batch_imgs_test[0])
                 print(batch_labels_test[0])
 
-                y_pred = sess.run([y_p], feed_dict={self.img_pl: batch_imgs_test, self.keep_prob: 1.0})
+                y_pred = sess.run(y_p, feed_dict={self.img_pl: batch_imgs_test, self.keep_prob: 1.0})
                 #print(len(y_pred))
                 list_pred_total.extend(y_pred)
                 y_true = np.argmax(batch_labels_test,1)
