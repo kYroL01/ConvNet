@@ -205,7 +205,7 @@ class ConvNet(object):
         # Launch the graph
         with tf.Session() as sess:
 
-            ## Construct model: prepare logits, loss and optimizer ##
+            ############################# Construct model: prepare logits, loss and optimizer #############################
 
             # logits: unnormalized log probabilities
             logits = self.alex_net_model(self.img_pl, self.weights, self.biases, self.keep_prob)
@@ -218,7 +218,7 @@ class ConvNet(object):
             
             print logits.get_shape(), self.label_pl.get_shape()
 
-            ## Evaluate model: the degree to which the result of the prediction conforms to the correct value ##
+            ######## Evaluate model: the degree to which the result of the prediction conforms to the correct value ########
             
             # list of booleans
             correct_pred = tf.equal(tf.argmax(logits,1), tf.argmax(self.label_pl, 1))
@@ -231,8 +231,9 @@ class ConvNet(object):
             # Run the Op to initialize the variables.
             sess.run(init)
             summary_writer = tf.summary.FileWriter(CKPT_DIR, graph=sess.graph)
+            
 
-            ##################################################################
+            ##################################### Training the model ################################################
 
             # collect imgs for validation
             validation_imgs_batch = [b for i, b in enumerate(self.BatchIterator(BATCH_SIZE)) if i < 6]
@@ -259,9 +260,8 @@ class ConvNet(object):
             save_model_ckpt = self.saver.save(sess, MODEL_CKPT)
             print("Model saved in file %s" % save_model_ckpt)
 
-            ##################################################################
+            ############################################### Metrics ##############################################
 
-            ### Metrics ###
             y_p = tf.argmax(logits,1) # the value predicted
 
             target_names = ['class 0', 'class 1', 'class 2']
@@ -292,10 +292,10 @@ class ConvNet(object):
     def prediction(self):
         with tf.Session() as sess:
 
-            # Construct model
+            ### Construct model
             pred = self.alex_net_model(self.img_pl, self.weights, self.biases, self.keep_prob)
 
-            # Restore model.
+            ### Restore model
             ckpt = tf.train.get_checkpoint_state("ckpt_dir")
             if(ckpt):
                 self.saver.restore(sess, MODEL_CKPT)
@@ -304,7 +304,8 @@ class ConvNet(object):
                 print "No model checkpoint found to restore - ERROR"
                 return
 
-            ### Metrics ###
+            ############################################### Metrics ##############################################
+            
             y_p = tf.argmax(pred,1) # the value predicted
 
             target_names = ['class 0', 'class 1', 'class 2']
@@ -325,7 +326,9 @@ class ConvNet(object):
                 #print(len(y_true))
                 list_true_total.extend(y_true)
 
-            #### TODO: METRICS FOR PRECISION RECALL F1-SCORE ####
+            # Classification Report
+            print(metrics.classification_report(list_true_total, list_pred_total, target_names=target_names))
+            log.info(metrics.classification_report(list_true_total, list_pred_total, target_names=target_names))
 
             # Network Input Values
             log.info("Learning Rate %d" % self.learning_rate)
@@ -421,7 +424,6 @@ def main():
 
 
 
-                
 
 if __name__ == '__main__':
     main()
