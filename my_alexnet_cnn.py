@@ -24,26 +24,26 @@ BATCH_SIZE = 64
 n_input = IMG_SIZE**2
 n_classes = 4
 n_channels = 3
-dropout = 0.8 # Dropout, probability to keep units
+input_dropout = 0.8
+hidden_dropout = 0.5
+
+
 
 class ConvNet(object):
 
     ## Constructor to build the model for the training ##
     def __init__(self, **kwargs):
 
-        params = set(['learning_rate','max_epoch','display_step', 'std_dev', 'dataset_train', 'dataset_test'])
+        params = set(['learning_rate','max_epochs','display_step', 'std_dev', 'dataset_training', 'dataset_test'])
 
         # initialize all allowed keys to false
         self.__dict__.update((key, False) for key in params)
         # and update the given keys by their given values
         self.__dict__.update((key, value) for key, value in kwargs.iteritems() if key in params)
 
-
-        if(self.dataset_train != False):
-            # Load the Training Set
-            self.train_imgs_lab = Dataset.loadDataset(self.dataset_train)
+        if(self.dataset_training != False):
+            self.train_imgs_lab = Dataset.loadDataset(self.dataset_training)
         else:
-            # Load the Test Set
             self.test_imgs_lab = Dataset.loadDataset(self.dataset_test)
 
         
@@ -77,7 +77,8 @@ class ConvNet(object):
         # Graph input
         self.img_pl = tf.placeholder(tf.float32, [None, n_input, n_channels])
         self.label_pl = tf.placeholder(tf.float32, [None, n_classes])
-        self.keep_prob = tf.placeholder(tf.float32) # dropout (keep probability)
+        self.keep_prob_in = tf.placeholder(tf.float32)
+        self.keep_prob_hid = tf.placeholder(tf.float32)
         
         # Create a saver for writing training checkpoints.
         self.saver = tf.train.Saver()
@@ -127,9 +128,9 @@ class ConvNet(object):
         return tf.nn.max_pool(l_input, ksize=[1, k, k, 1], strides=[1, s, s, 1], padding='SAME', name=name)
 
     def norm(self, name, l_input, lsize):
-        return tf.nn.lrn(l_input, lsize, bias=1.0, alpha=2e-05, beta=0.75, name=name)
+        return tf.nn.lrn(l_input, lsize, bias=2.0, alpha=2e-05, beta=0.75, name=name)
 
-    def alex_net_model(self, _X, _weights, _biases, _dropout):
+    def alex_net_model(self, _X, _weights, _biases, input_dropout, hidden_dropout):
         # Reshape input picture
 
         _X = tf.reshape(_X, shape=[-1, IMG_SIZE, IMG_SIZE, 3])
@@ -144,7 +145,7 @@ class ConvNet(object):
         norm1 = self.norm('norm1', pool1, lsize=4)
         print "norm1.shape:", norm1.get_shape()
         # Apply Dropout
-        dropout1 = tf.nn.dropout(norm1, _dropout)
+        dropout1 = tf.nn.dropout(norm1, input_dropout)
 
         # Convolution Layer 2
         conv2 = self.conv2d('conv2', dropout1, _weights['wc2'], _biases['bc2'], s=1)
@@ -156,7 +157,7 @@ class ConvNet(object):
         norm2 = self.norm('norm2', pool2, lsize=4)
         print "norm2.shape:", norm2.get_shape()
         # Apply Dropout
-        dropout2 = tf.nn.dropout(norm2, _dropout)
+        dropout2 = tf.nn.dropout(norm2, hidden_dropout)
         print "dropout2.shape:", dropout2.get_shape()
 
         # Convolution Layer 3
@@ -165,7 +166,7 @@ class ConvNet(object):
 
         pool3 = self.max_pool('pool3', conv3, k=3, s=2)
         norm3 = self.norm('norm3', pool3, lsize=4)
-        dropout3 = tf.nn.dropout(norm3, _dropout)
+        dropout3 = tf.nn.dropout(norm3, hidden_dropout)
 
         # Convolution Layer 4
         conv4 = self.conv2d('conv4', dropout3, _weights['wc4'], _biases['bc4'], s=1)
@@ -173,7 +174,7 @@ class ConvNet(object):
 
         pool4 = self.max_pool('pool4', conv4, k=3, s=2)
         norm4 = self.norm('norm4', pool4, lsize=4)
-        dropout4 = tf.nn.dropout(norm4, _dropout)
+        dropout4 = tf.nn.dropout(norm4, hidden_dropout)
 
         # Convolution Layer 5
         conv5 = self.conv2d('conv5', dropout4, _weights['wc5'], _biases['bc5'], s=1)
@@ -205,10 +206,10 @@ class ConvNet(object):
         # Launch the graph
         with tf.Session() as sess:
 
-            ############################# Construct model: prepare logits, loss and optimizer #############################
+            ## Construct model: prepare logits, loss and optimizer ##
 
             # logits: unnormalized log probabilities
-            logits = self.alex_net_model(self.img_pl, self.weights, self.biases, self.keep_prob)
+            logits = self.alex_net_model(self.img_pl, self.weights, self.biases, self.keep_prob_in, self.keep_prob_hid)
 
             # loss: cross-entropy between the target and the softmax activation function applied to the model's prediction
             loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=self.label_pl))
@@ -218,7 +219,7 @@ class ConvNet(object):
             
             print logits.get_shape(), self.label_pl.get_shape()
 
-            ######## Evaluate model: the degree to which the result of the prediction conforms to the correct value ########
+            ## Evaluate model: the degree to which the result of the prediction conforms to the correct value ##
             
             # list of booleans
             correct_pred = tf.equal(tf.argmax(logits,1), tf.argmax(self.label_pl, 1))
@@ -231,28 +232,27 @@ class ConvNet(object):
             # Run the Op to initialize the variables.
             sess.run(init)
             summary_writer = tf.summary.FileWriter(CKPT_DIR, graph=sess.graph)
-            
 
-            ##################################### Training the model ################################################
+            ##################################################################
 
             # collect imgs for validation
-            validation_imgs_batch = [b for i, b in enumerate(self.BatchIterator(BATCH_SIZE)) if i < 6]
+            validation_imgs_batch = [b for i, b in enumerate(self.BatchIteratorTraining(BATCH_SIZE)) if i < 6]
 
             # Run for epoch
             for epoch in range(self.max_epochs):
                 print "epoch = %d" % epoch
-                log.info('Epoch %s' % epoch)
-                self.train_imgs_lab = Dataset.loadDataset(self.dataset) # necessary 'cause of the yeld
+                log.info("Epoch %s" % epoch)
+                self.train_imgs_lab = Dataset.loadDataset(self.dataset_training) # necessary 'cause of the yeld
                 
                 # Loop over all batches
                 for step, elems in enumerate(self.BatchIteratorTraining(BATCH_SIZE)):
                     print "step = %d" % step
-                    log.info('step %s' % step)
                     ### from iterator return batch lists ###
                     batch_imgs_train, batch_labels_train = elems
-                    _, train_acc, train_loss = sess.run([train_step, accuracy, loss], feed_dict={self.img_pl: batch_imgs_train, self.label_pl: batch_labels_train, self.keep_prob: 1.0})
-                    log.info("Training Accuracy = " + "{:.5f}".format(train_acc))
-                    log.info("Training Loss = " + "{:.6f}".format(train_loss))
+                    _, train_acc, train_loss = sess.run([train_step, accuracy, loss], feed_dict={self.img_pl: batch_imgs_train, self.label_pl: batch_labels_train, self.keep_prob_in: 1.0, self.keep_prob_hid: 1.0})
+                    if step % self.display_step == 0:
+                        log.info("Training Accuracy = " + "{:.5f}".format(train_acc))
+                        log.info("Training Loss = " + "{:.6f}".format(train_loss))
                     
             print "Optimization Finished!"
 
@@ -260,11 +260,12 @@ class ConvNet(object):
             save_model_ckpt = self.saver.save(sess, MODEL_CKPT)
             print("Model saved in file %s" % save_model_ckpt)
 
-            ############################################### Metrics ##############################################
+            ##################################################################
 
+            ### Metrics ###
             y_p = tf.argmax(logits,1) # the value predicted
 
-            target_names = ['class 0', 'class 1', 'class 2']
+            target_names = ['class 0', 'class 1']
             list_pred_total = []
             list_true_total = []
 
@@ -272,30 +273,31 @@ class ConvNet(object):
             for step, elems in enumerate(validation_imgs_batch):
 
                 batch_imgs_valid, batch_labels_valid = elems
-                valid_acc, y_pred = sess.run([accuracy, y_p], feed_dict={self.img_pl: batch_imgs_valid, self.label_pl: batch_labels_valid, self.keep_prob: 1.0})
-                log.info("Validation accuracy = %.5f" % (valid_acc))
+                valid_acc, y_pred = sess.run([accuracy, y_p], feed_dict={self.img_pl: batch_imgs_valid, self.label_pl: batch_labels_valid, self.keep_prob_in: 1.0, self.keep_prob_hid: 1.0})
+                log.info("Validation accuracy = " + "{:.5f}".format(valid_acc))
                 list_pred_total.extend(y_pred)
                 y_true = np.argmax(batch_labels_valid,1)
                 list_true_total.extend(y_true)
 
-            # Classification Report
-            print(metrics.classification_report(list_true_total, list_pred_total, target_names=target_names))
+            # Classification Report (PRECISION - RECALL - F1 SCORE)
+            log.info("\n")
             log.info(metrics.classification_report(list_true_total, list_pred_total, target_names=target_names))
+            print(metrics.classification_report(list_true_total, list_pred_total, target_names=target_names))
 
             # Network Input Values
-            log.info("Learning Rate %d" % (self.learning_rate))
-            log.info("Number of epochs %d" % (self.max_epoch))
-            log.info("Standard Deviation %d" % (self.std_dev))
+            log.info("Learning Rate " + "{:.4f}".format(self.learning_rate))
+            log.info("Number of epochs " + "{:d}".format(self.max_epochs))
+            log.info("Standard Deviation " + "{:.2f}".format(self.std_dev))
 
 
     
     def prediction(self):
         with tf.Session() as sess:
 
-            ### Construct model
-            pred = self.alex_net_model(self.img_pl, self.weights, self.biases, self.keep_prob)
+            # Construct model
+            pred = self.alex_net_model(self.img_pl, self.weights, self.biases, self.keep_prob_in, self.keep_prob_hid)
 
-            ### Restore model
+            # Restore model.
             ckpt = tf.train.get_checkpoint_state("ckpt_dir")
             if(ckpt):
                 self.saver.restore(sess, MODEL_CKPT)
@@ -304,11 +306,10 @@ class ConvNet(object):
                 print "No model checkpoint found to restore - ERROR"
                 return
 
-            ############################################### Metrics ##############################################
-            
+            ### M ###
             y_p = tf.argmax(pred,1) # the value predicted
 
-            target_names = ['class 0', 'class 1', 'class 2']
+            target_names = ['class 0', 'class 1']
             list_pred_total = []
             list_true_total = []
 
@@ -316,24 +317,23 @@ class ConvNet(object):
             for step, elems in enumerate(self.BatchIteratorTesting(BATCH_SIZE)):
 
                 batch_imgs_test, batch_labels_test = elems
-                print(batch_imgs_test[0])
-                print(batch_labels_test[0])
 
-                y_pred = sess.run(y_p, feed_dict={self.img_pl: batch_imgs_test, self.keep_prob: 1.0})
-                #print(len(y_pred))
+                y_pred = sess.run(y_p, feed_dict={self.img_pl: batch_imgs_test, self.keep_prob_in: 1.0, self.keep_prob_hid: 1.0})
+                print("batch predict = %d" % len(y_pred))
                 list_pred_total.extend(y_pred)
                 y_true = np.argmax(batch_labels_test,1)
-                #print(len(y_true))
+                print("batch real = %d" % len(y_true))
                 list_true_total.extend(y_true)
 
-            # Classification Report
-            print(metrics.classification_report(list_true_total, list_pred_total, target_names=target_names))
+            # Classification Report (PRECISION - RECALL - F1 SCORE)
             log.info(metrics.classification_report(list_true_total, list_pred_total, target_names=target_names))
+            print(metrics.classification_report(list_true_total, list_pred_total, target_names=target_names))
 
             # Network Input Values
-            log.info("Learning Rate %d" % self.learning_rate)
-            log.info("Number of epochs %d" % self.max_epoch)
-            log.info("Standard Deviation %d" % self.std_dev)
+            log.info("Learning Rate " + "{:.4f}".format(self.learning_rate))
+            log.info("Number of epochs " + "{:d}".format(self.max_epochs))
+            log.info("Standard Deviation " + "{:.2f}".format(self.std_dev))
+
 
 
 
@@ -347,7 +347,7 @@ def main():
 
     training_args = [
         (['-lr', '--learning-rate'], {'help':'learning rate', 'type':float, 'default':0.001}),
-        (['-e', '--epochs'], {'help':'epochs', 'type':int, 'default':5}),
+        (['-e', '--max_epochs'], {'help':'max epochs', 'type':int, 'default':100}),
         (['-ds', '--display-step'], {'help':'display step', 'type':int, 'default':10}),
         (['-sd', '--std-dev'], {'help':'std-dev', 'type':float, 'default':1.0}),
         (['-dtr', '--dataset_training'],  {'help':'dataset training file', 'type':str, 'default':'images_shuffled.pkl'})
@@ -388,21 +388,20 @@ def main():
 
     # TRAINING & PREDICTION
     if args.which in ('train', 'predict'):
-        
         t = timeit.timeit("Dataset.loadDataset(TRAIN_IMAGE_DIR)", setup="from __main__ import *")
+
+        # create the object ConvNet
 
         if args.which == 'train':
             # TRAINING
-            # create the object ConvNet for training
-            conv_net = ConvNet(learning_rate=args.learning_rate, epochs=args.epochs, display_step=args.display_step,
-                               std_dev=args.std_dev, dataset_train=args.dataset_train)
+            conv_net = ConvNet(learning_rate=args.learning_rate, max_epochs=args.max_epochs, display_step=args.display_step,
+                               std_dev=args.std_dev, dataset_training=args.dataset_training)
             # count total number of imgs in training
             train_img_count = Dataset.getNumImages(TRAIN_IMAGE_DIR)
             log.info("Training set num images = %d" % train_img_count)
             conv_net.training()
         else:
             # PREDICTION
-            # create the object ConvNet for test
             conv_net = ConvNet(dataset_test=args.dataset_test)
             # count total number of imgs in test
             test_img_count = Dataset.getNumImages(TEST_IMAGE_DIR)
@@ -424,6 +423,7 @@ def main():
 
 
 
+                
 
 if __name__ == '__main__':
     main()
