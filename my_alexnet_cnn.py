@@ -4,6 +4,7 @@ import sys
 import tensorflow as tf
 import numpy as np
 import logging as log
+import math
 import timeit
 import argparse
 
@@ -26,6 +27,7 @@ n_classes = 4
 n_channels = 3
 input_dropout = 0.8
 hidden_dropout = 0.5
+std_dev = math.sqrt(2/n_input) http://cs231n.github.io/neural-networks-2/#init
 
 
 
@@ -34,7 +36,7 @@ class ConvNet(object):
     ## Constructor to build the model for the training ##
     def __init__(self, **kwargs):
 
-        params = set(['learning_rate','max_epochs','display_step', 'std_dev', 'dataset_training', 'dataset_test'])
+        params = set(['learning_rate','max_epochs','display_step','dataset_training','dataset_test'])
 
         # initialize all allowed keys to false
         self.__dict__.update((key, False) for key in params)
@@ -49,16 +51,16 @@ class ConvNet(object):
         
         # Store layers weight & bias
         self.weights = {
-            'wc1': tf.Variable(tf.random_normal([11, 11, n_channels, BATCH_SIZE], stddev=self.std_dev)),
-            'wc2': tf.Variable(tf.random_normal([5, 5, BATCH_SIZE, BATCH_SIZE*2], stddev=self.std_dev)),
-            'wc3': tf.Variable(tf.random_normal([3, 3, BATCH_SIZE*2, BATCH_SIZE*4], stddev=self.std_dev)),
-            'wc4': tf.Variable(tf.random_normal([3, 3, BATCH_SIZE*4, BATCH_SIZE*4], stddev=self.std_dev)),
-            'wc5': tf.Variable(tf.random_normal([3, 3, BATCH_SIZE*4, 256], stddev=self.std_dev)),
+            'wc1': tf.Variable(tf.random_normal([11, 11, n_channels, BATCH_SIZE], stddev=std_dev)),
+            'wc2': tf.Variable(tf.random_normal([5, 5, BATCH_SIZE, BATCH_SIZE*2], stddev=std_dev)),
+            'wc3': tf.Variable(tf.random_normal([3, 3, BATCH_SIZE*2, BATCH_SIZE*4], stddev=std_dev)),
+            'wc4': tf.Variable(tf.random_normal([3, 3, BATCH_SIZE*4, BATCH_SIZE*4], stddev=std_dev)),
+            'wc5': tf.Variable(tf.random_normal([3, 3, BATCH_SIZE*4, 256], stddev=std_dev)),
 
             'wd': tf.Variable(tf.random_normal([1024, 4096])),
-            'wfc': tf.Variable(tf.random_normal([4096, 1024], stddev=self.std_dev)),
+            'wfc': tf.Variable(tf.random_normal([4096, 1024], stddev=std_dev)),
 
-            'out': tf.Variable(tf.random_normal([1024, n_classes], stddev=self.std_dev))
+            'out': tf.Variable(tf.random_normal([1024, n_classes], stddev=std_dev))
         }
 
         self.biases = {
@@ -287,7 +289,6 @@ class ConvNet(object):
             # Network Input Values
             log.info("Learning Rate " + "{:.4f}".format(self.learning_rate))
             log.info("Number of epochs " + "{:d}".format(self.max_epochs))
-            log.info("Standard Deviation " + "{:.2f}".format(self.std_dev))
 
 
     
@@ -332,7 +333,6 @@ class ConvNet(object):
             # Network Input Values
             log.info("Learning Rate " + "{:.4f}".format(self.learning_rate))
             log.info("Number of epochs " + "{:d}".format(self.max_epochs))
-            log.info("Standard Deviation " + "{:.2f}".format(self.std_dev))
 
 
 
@@ -349,7 +349,6 @@ def main():
         (['-lr', '--learning-rate'], {'help':'learning rate', 'type':float, 'default':0.001}),
         (['-e', '--max_epochs'], {'help':'max epochs', 'type':int, 'default':100}),
         (['-ds', '--display-step'], {'help':'display step', 'type':int, 'default':10}),
-        (['-sd', '--std-dev'], {'help':'std-dev', 'type':float, 'default':1.0}),
         (['-dtr', '--dataset_training'],  {'help':'dataset training file', 'type':str, 'default':'images_shuffled.pkl'})
     ]
 
@@ -394,8 +393,8 @@ def main():
 
         if args.which == 'train':
             # TRAINING
-            conv_net = ConvNet(learning_rate=args.learning_rate, max_epochs=args.max_epochs, display_step=args.display_step,
-                               std_dev=args.std_dev, dataset_training=args.dataset_training)
+            conv_net = ConvNet(learning_rate=args.learning_rate, max_epochs=args.max_epochs,
+                               display_step=args.display_step, dataset_training=args.dataset_training)
             # count total number of imgs in training
             train_img_count = Dataset.getNumImages(TRAIN_IMAGE_DIR)
             log.info("Training set num images = %d" % train_img_count)
