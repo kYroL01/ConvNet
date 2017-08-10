@@ -10,8 +10,7 @@ import argparse
 
 from sklearn import metrics
 
-from Dataset import IMG_SIZE
-from Dataset import LABELS_DICT
+from Dataset import IMG_SIZE, LABELS_DICT
 
 TRAIN_IMAGE_DIR = os.getcwd() + '/small_dataset'
 TEST_IMAGE_DIR = os.getcwd() + '/test_dataset'
