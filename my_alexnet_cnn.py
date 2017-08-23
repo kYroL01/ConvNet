@@ -298,7 +298,7 @@ class ConvNet(object):
             ### Metrics ###
             y_p = tf.argmax(logits,1) # the value predicted
 
-            target_names = ['Porn', 'Lecit']
+            target_names = ['class 0', 'class 1', 'class 2', 'class 3']
             list_pred_total = []
             list_true_total = []
 
