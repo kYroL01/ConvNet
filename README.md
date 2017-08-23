@@ -11,4 +11,4 @@ A convolutional neural network for image recognition
 
 ## How to use
 
-See the [Wiki](ConvNet/wiki) section for a better explanation of the project
+See the [Wiki](https://github.com/kYroL01/ConvNet.wiki.git) section for a better explanation of the project
