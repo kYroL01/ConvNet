@@ -1,18 +1,19 @@
 import Dataset
 import os
 import sys
-import tensorflow as tf
-import numpy as np
-import logging as log
 import math
 import timeit
 import argparse
+import tensorflow as tf
+import numpy as np
+import logging as log
+import matplotlib.pyplot as plt
 
 from sklearn import metrics
 
 from Dataset import IMG_SIZE, LABELS_DICT
 
-TRAIN_IMAGE_DIR = os.getcwd() + '/small_dataset'
+TRAIN_IMAGE_DIR = os.getcwd() + '/dataset'
 TEST_IMAGE_DIR = os.getcwd() + '/test_dataset'
 CKPT_DIR = 'ckpt_dir'
 MODEL_CKPT = 'ckpt_dir/model.cktp'
@@ -26,8 +27,7 @@ n_classes = 4
 n_channels = 3
 input_dropout = 0.8
 hidden_dropout = 0.5
-std_dev = math.sqrt(2/n_input) http://cs231n.github.io/neural-networks-2/#init
-
+std_dev = 0.1 #math.sqrt(2/n_input) # http://cs231n.github.io/neural-networks-2/#init
 
 
 class ConvNet(object):
@@ -56,10 +56,10 @@ class ConvNet(object):
             'wc4': tf.Variable(tf.random_normal([3, 3, BATCH_SIZE*4, BATCH_SIZE*4], stddev=std_dev)),
             'wc5': tf.Variable(tf.random_normal([3, 3, BATCH_SIZE*4, 256], stddev=std_dev)),
 
-            'wd': tf.Variable(tf.random_normal([1024, 4096])),
-            'wfc': tf.Variable(tf.random_normal([4096, 1024], stddev=std_dev)),
+            'wd': tf.Variable(tf.random_normal([2*2*256, 4096])),
+            'wfc': tf.Variable(tf.random_normal([4096, 2*2*256], stddev=std_dev)),
 
-            'out': tf.Variable(tf.random_normal([1024, n_classes], stddev=std_dev))
+            'out': tf.Variable(tf.random_normal([2*2*256, n_classes], stddev=std_dev))
         }
 
         self.biases = {
@@ -70,7 +70,7 @@ class ConvNet(object):
             'bc5': tf.Variable(tf.random_normal([256])),
 
             'bd': tf.Variable(tf.random_normal([4096])),
-            'bfc': tf.Variable(tf.random_normal([1024])),
+            'bfc': tf.Variable(tf.random_normal([2*2*256])),
 
             'out': tf.Variable(tf.random_normal([n_classes]))
         }
@@ -129,14 +129,14 @@ class ConvNet(object):
         return tf.nn.max_pool(l_input, ksize=[1, k, k, 1], strides=[1, s, s, 1], padding='SAME', name=name)
 
     def norm(self, name, l_input, lsize):
-        return tf.nn.lrn(l_input, lsize, bias=2.0, alpha=2e-05, beta=0.75, name=name)
+        return tf.nn.lrn(l_input, lsize, bias=1.0, alpha=2e-05, beta=0.75, name=name)
 
     def alex_net_model(self, _X, _weights, _biases, input_dropout, hidden_dropout):
         # Reshape input picture
 
         _X = tf.reshape(_X, shape=[-1, IMG_SIZE, IMG_SIZE, 3])
 
-        # Convolution Layer 1
+        # Convolutional Layer 1
         conv1 = self.conv2d('conv1', _X, _weights['wc1'], _biases['bc1'], s=4)
         print "conv1.shape: ", conv1.get_shape()
         # Max Pooling (down-sampling)
@@ -148,7 +148,11 @@ class ConvNet(object):
         # Apply Dropout
         dropout1 = tf.nn.dropout(norm1, input_dropout)
 
-        # Convolution Layer 2
+        tf.summary.histogram("weights", _weights['wc1'])
+        tf.summary.histogram("convolution", conv1 )
+        tf.summary.histogram("activation", norm1)
+
+        # Convolutional Layer 2
         conv2 = self.conv2d('conv2', dropout1, _weights['wc2'], _biases['bc2'], s=1)
         print "conv2.shape:", conv2.get_shape()
         # Max Pooling (down-sampling)
@@ -158,45 +162,63 @@ class ConvNet(object):
         norm2 = self.norm('norm2', pool2, lsize=4)
         print "norm2.shape:", norm2.get_shape()
         # Apply Dropout
-        dropout2 = tf.nn.dropout(norm2, hidden_dropout)
-        print "dropout2.shape:", dropout2.get_shape()
+        #dropout2 = tf.nn.dropout(norm2, hidden_dropout)
 
-        # Convolution Layer 3
-        conv3 = self.conv2d('conv3', dropout2, _weights['wc3'], _biases['bc3'], s=1)
+        tf.summary.histogram("weights", _weights['wc2'])
+        tf.summary.histogram("convolution", conv2 )
+        tf.summary.histogram("activation", norm2)
+
+        # Convolutional Layer 3
+        conv3 = self.conv2d('conv3', norm2, _weights['wc3'], _biases['bc3'], s=1)
         print "conv3.shape:", conv3.get_shape()
-
         pool3 = self.max_pool('pool3', conv3, k=3, s=2)
         norm3 = self.norm('norm3', pool3, lsize=4)
         dropout3 = tf.nn.dropout(norm3, hidden_dropout)
 
-        # Convolution Layer 4
+        tf.summary.histogram("weights", _weights['wc3'])
+        tf.summary.histogram("convolution", conv3 )
+        tf.summary.histogram("activation", norm3)
+
+        # Convolutional Layer 4
         conv4 = self.conv2d('conv4', dropout3, _weights['wc4'], _biases['bc4'], s=1)
         print "conv4.shape:", conv4.get_shape()
-
         pool4 = self.max_pool('pool4', conv4, k=3, s=2)
         norm4 = self.norm('norm4', pool4, lsize=4)
         dropout4 = tf.nn.dropout(norm4, hidden_dropout)
 
-        # Convolution Layer 5
+        tf.summary.histogram("weights", _weights['wc4'])
+        tf.summary.histogram("convolution", conv4 )
+        tf.summary.histogram("activation", norm4)
+
+        # Convolutional Layer 5
         conv5 = self.conv2d('conv5', dropout4, _weights['wc5'], _biases['bc5'], s=1)
         print "conv5.shape:", conv5.get_shape()
-
         pool5 = self.max_pool('pool5', conv5, k=3, s=2)
-        print "pool5.shape:", pool5.get_shape()
+
+        tf.summary.histogram("convolution", conv5 )
 
         # Fully connected layer 1
         pool5_shape = pool5.get_shape().as_list()
+        print "pool5_shape: ", pool5.get_shape()
         dense = tf.reshape(pool5, [-1, pool5_shape[1] * pool5_shape[2] * pool5_shape[3]])
-        print "dense.shape:", dense.get_shape()
+        print "dense.shape:", dense.get_shape().as_list()
         fc1 = tf.nn.relu(tf.matmul(dense, _weights['wd']) + _biases['bd'], name='fc1')  # Relu activation
         print "fc1.shape:", fc1.get_shape()
+        #dropout6 = tf.nn.dropout(fc1, hidden_dropout) #
+
+        tf.summary.histogram("fully_connected", fc1)
 
         # Fully connected layer 2
         fc2 = tf.nn.relu(tf.matmul(fc1, _weights['wfc']) + _biases['bfc'], name='fc2')  # Relu activation
         print "fc2.shape:", fc2.get_shape()
+        dropout7 = tf.nn.dropout(fc2, hidden_dropout)
+
+        tf.summary.histogram("fully_connected", fc2)
 
         # Output, class prediction LOGITS
-        out = tf.matmul(fc2, _weights['out']) + _biases['out']
+        out = tf.matmul(dropout7, _weights['out']) + _biases['out']
+
+        tf.summary.histogram("output", out)
 
         # The function returns the Logits to be passed to softmax and the Softmax for the PREDICTION
         return out
@@ -214,9 +236,13 @@ class ConvNet(object):
 
             # loss: cross-entropy between the target and the softmax activation function applied to the model's prediction
             loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=self.label_pl))
+
             tf.summary.scalar("cross-entropy_for_loss", loss)
+
             # optimizer: find the best gradients of the loss with respect to each of the variables
             train_step = tf.train.AdamOptimizer(learning_rate=self.learning_rate, epsilon=0.1).minimize(loss)
+
+            tf.summary.scalar("learning_rate", self.learning_rate)
             
             print logits.get_shape(), self.label_pl.get_shape()
 
@@ -226,7 +252,10 @@ class ConvNet(object):
             correct_pred = tf.equal(tf.argmax(logits,1), tf.argmax(self.label_pl, 1))
             # [True, False, True, True] -> [1,0,1,1] -> 0.75
             accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
+
             tf.summary.scalar("accuracy", accuracy)
+
+            merged_summary_op = tf.summary.merge_all()
 
             # Initializing the variables
             init = tf.global_variables_initializer()
@@ -250,7 +279,10 @@ class ConvNet(object):
                     print "step = %d" % step
                     ### from iterator return batch lists ###
                     batch_imgs_train, batch_labels_train = elems
-                    _, train_acc, train_loss = sess.run([train_step, accuracy, loss], feed_dict={self.img_pl: batch_imgs_train, self.label_pl: batch_labels_train, self.keep_prob_in: 1.0, self.keep_prob_hid: 1.0})
+                    _, train_acc, train_loss, summary_op = sess.run([train_step, accuracy, loss, merged_summary_op], feed_dict={self.img_pl: batch_imgs_train, self.label_pl: batch_labels_train, self.keep_prob_in: 1.0, self.keep_prob_hid: 1.0})
+
+                    summary_writer.add_summary(summary_op, epoch * step + i)
+
                     if step % self.display_step == 0:
                         log.info("Training Accuracy = " + "{:.5f}".format(train_acc))
                         log.info("Training Loss = " + "{:.6f}".format(train_loss))
@@ -266,7 +298,7 @@ class ConvNet(object):
             ### Metrics ###
             y_p = tf.argmax(logits,1) # the value predicted
 
-            target_names = ['class 0', 'class 1', 'class 2', 'class 3']
+            target_names = ['Porn', 'Lecit']
             list_pred_total = []
             list_true_total = []
 
@@ -283,11 +315,26 @@ class ConvNet(object):
             # Classification Report (PRECISION - RECALL - F1 SCORE)
             log.info("\n")
             log.info(metrics.classification_report(list_true_total, list_pred_total, target_names=target_names))
-            print(metrics.classification_report(list_true_total, list_pred_total, target_names=target_names))
 
             # Network Input Values
             log.info("Learning Rate " + "{:.4f}".format(self.learning_rate))
             log.info("Number of epochs " + "{:d}".format(self.max_epochs))
+
+            print(metrics.classification_report(list_true_total, list_pred_total, target_names=target_names))
+
+            # ROC curve
+            fpr, tpr, _ = metrics.roc_curve(y_true, y_pred)
+
+            plt.figure()
+            plt.plot(fpr, tpr, label='ROC curve')
+            plt.xlim([0.0, 1.0])
+            plt.ylim([0.0, 1.0])
+            plt.xlabel('False Positive Rate')
+            plt.ylabel('True Positive Rate')
+            plt.title('Recognition ROC curve')
+            plt.legend(loc="lower right")
+            plt.show()
+            
 
 
     
@@ -326,12 +373,14 @@ class ConvNet(object):
                 list_true_total.extend(y_true)
 
             # Classification Report (PRECISION - RECALL - F1 SCORE)
+            log.info('\n')
             log.info(metrics.classification_report(list_true_total, list_pred_total, target_names=target_names))
-            print(metrics.classification_report(list_true_total, list_pred_total, target_names=target_names))
 
             # Network Input Values
             log.info("Learning Rate " + "{:.4f}".format(self.learning_rate))
             log.info("Number of epochs " + "{:d}".format(self.max_epochs))
+
+            print(metrics.classification_report(list_true_total, list_pred_total, target_names=target_names))
 
 
 
@@ -419,9 +468,7 @@ def main():
     elif args.which == 'preprocessing_test':
             Dataset.saveDataset(TEST_IMAGE_DIR, args.test)
 
-
-
-                
+      
 
 if __name__ == '__main__':
     main()

@@ -3,11 +3,10 @@
 
 # ======================= DATASET ====================================
 #
-# Categories:
-# 0) Gatti
-# 1) Alberi
-# 3) Cani
-# 2) Cavalli
+# 0) Cat
+# 1) Tree
+# 3) Dog
+# 2) Horse
 #
 # ====================================================================
 import glob
@@ -22,11 +21,12 @@ from timeit import default_timer as timer
 
 
 IMG_SIZE = 224
+
 LABELS_DICT = {
-    'Gatti': 0,
-    'Alberi': 1,
-    'Cavalli': 2,
-    'Cani': 3,
+    'Cat': 0,
+    'Tree': 1,
+    'Horse': 2,
+    'Dog': 3,
 }
 
 
@@ -55,10 +55,11 @@ def convertDataset(image_dir):
 
     log.info("Start processing images (Dataset.py) ")
     start = timer()
-    for dirName in os.listdir(image_dir):
+    for dirName in os.listdir(image_dir): #TODO sort
         label_i = label[i]
         print("ONE_HOT_ROW = ", label_i)
         i += 1
+        # log.info("Execution time of convLabels function = %.4f sec" % (end1-start1))
         path = os.path.join(image_dir, dirName)
         for img in os.listdir(path):
             img_path = os.path.join(path, img)
