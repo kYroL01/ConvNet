@@ -30,6 +30,104 @@ hidden_dropout = 0.5
 std_dev = 0.1 #math.sqrt(2/n_input) # http://cs231n.github.io/neural-networks-2/#init
 
 
+class AlexNetModel(tf.keras.Model):
+    """AlexNet CNN model using Keras API"""
+
+    def __init__(self, n_classes=4, input_dropout=0.8, hidden_dropout=0.5):
+        super(AlexNetModel, self).__init__()
+
+        # Convolutional layers
+        self.conv1 = tf.keras.layers.Conv2D(BATCH_SIZE, (11, 11), strides=4, padding='same',
+                                            activation='relu', name='conv1',
+                                            kernel_initializer=tf.keras.initializers.RandomNormal(stddev=std_dev))
+        self.pool1 = tf.keras.layers.MaxPooling2D(pool_size=(3, 3), strides=2, padding='same', name='pool1')
+        self.norm1 = tf.keras.layers.BatchNormalization(name='norm1')
+        self.dropout1 = tf.keras.layers.Dropout(1 - input_dropout, name='dropout1')
+
+        self.conv2 = tf.keras.layers.Conv2D(BATCH_SIZE*2, (5, 5), strides=1, padding='same',
+                                            activation='relu', name='conv2',
+                                            kernel_initializer=tf.keras.initializers.RandomNormal(stddev=std_dev))
+        self.pool2 = tf.keras.layers.MaxPooling2D(pool_size=(3, 3), strides=2, padding='same', name='pool2')
+        self.norm2 = tf.keras.layers.BatchNormalization(name='norm2')
+
+        self.conv3 = tf.keras.layers.Conv2D(BATCH_SIZE*4, (3, 3), strides=1, padding='same',
+                                            activation='relu', name='conv3',
+                                            kernel_initializer=tf.keras.initializers.RandomNormal(stddev=std_dev))
+        self.pool3 = tf.keras.layers.MaxPooling2D(pool_size=(3, 3), strides=2, padding='same', name='pool3')
+        self.norm3 = tf.keras.layers.BatchNormalization(name='norm3')
+        self.dropout3 = tf.keras.layers.Dropout(1 - hidden_dropout, name='dropout3')
+
+        self.conv4 = tf.keras.layers.Conv2D(BATCH_SIZE*4, (3, 3), strides=1, padding='same',
+                                            activation='relu', name='conv4',
+                                            kernel_initializer=tf.keras.initializers.RandomNormal(stddev=std_dev))
+        self.pool4 = tf.keras.layers.MaxPooling2D(pool_size=(3, 3), strides=2, padding='same', name='pool4')
+        self.norm4 = tf.keras.layers.BatchNormalization(name='norm4')
+        self.dropout4 = tf.keras.layers.Dropout(1 - hidden_dropout, name='dropout4')
+
+        self.conv5 = tf.keras.layers.Conv2D(256, (3, 3), strides=1, padding='same',
+                                            activation='relu', name='conv5',
+                                            kernel_initializer=tf.keras.initializers.RandomNormal(stddev=std_dev))
+        self.pool5 = tf.keras.layers.MaxPooling2D(pool_size=(3, 3), strides=2, padding='same', name='pool5')
+
+        # Flatten layer
+        self.flatten = tf.keras.layers.Flatten()
+
+        # Fully connected layers
+        self.fc1 = tf.keras.layers.Dense(4096, activation='relu', name='fc1',
+                                         kernel_initializer=tf.keras.initializers.RandomNormal(stddev=std_dev))
+
+        self.fc2 = tf.keras.layers.Dense(2*2*256, activation='relu', name='fc2',
+                                         kernel_initializer=tf.keras.initializers.RandomNormal(stddev=std_dev))
+        self.dropout7 = tf.keras.layers.Dropout(1 - hidden_dropout, name='dropout7')
+
+        # Output layer
+        self.out = tf.keras.layers.Dense(n_classes, name='output',
+                                         kernel_initializer=tf.keras.initializers.RandomNormal(stddev=std_dev))
+
+    def call(self, inputs, training=False):
+        """Forward pass of the model"""
+        # Reshape input to image format
+        x = tf.reshape(inputs, shape=[-1, IMG_SIZE, IMG_SIZE, 3])
+
+        # Conv block 1
+        x = self.conv1(x)
+        x = self.pool1(x)
+        x = self.norm1(x, training=training)
+        x = self.dropout1(x, training=training)
+
+        # Conv block 2
+        x = self.conv2(x)
+        x = self.pool2(x)
+        x = self.norm2(x, training=training)
+
+        # Conv block 3
+        x = self.conv3(x)
+        x = self.pool3(x)
+        x = self.norm3(x, training=training)
+        x = self.dropout3(x, training=training)
+
+        # Conv block 4
+        x = self.conv4(x)
+        x = self.pool4(x)
+        x = self.norm4(x, training=training)
+        x = self.dropout4(x, training=training)
+
+        # Conv block 5
+        x = self.conv5(x)
+        x = self.pool5(x)
+
+        # Flatten and fully connected layers
+        x = self.flatten(x)
+        x = self.fc1(x)
+        x = self.fc2(x)
+        x = self.dropout7(x, training=training)
+
+        # Output layer (logits)
+        x = self.out(x)
+
+        return x
+
+
 class ConvNet(object):
 
     ## Constructor to build the model for the training ##
@@ -47,59 +145,25 @@ class ConvNet(object):
         else:
             self.test_imgs_lab = Dataset.loadDataset(self.dataset_test)
 
-        
-        # Store layers weight & bias
-        self.weights = {
-            'wc1': tf.Variable(tf.random_normal([11, 11, n_channels, BATCH_SIZE], stddev=std_dev)),
-            'wc2': tf.Variable(tf.random_normal([5, 5, BATCH_SIZE, BATCH_SIZE*2], stddev=std_dev)),
-            'wc3': tf.Variable(tf.random_normal([3, 3, BATCH_SIZE*2, BATCH_SIZE*4], stddev=std_dev)),
-            'wc4': tf.Variable(tf.random_normal([3, 3, BATCH_SIZE*4, BATCH_SIZE*4], stddev=std_dev)),
-            'wc5': tf.Variable(tf.random_normal([3, 3, BATCH_SIZE*4, 256], stddev=std_dev)),
-
-            'wd': tf.Variable(tf.random_normal([2*2*256, 4096])),
-            'wfc': tf.Variable(tf.random_normal([4096, 2*2*256], stddev=std_dev)),
-
-            'out': tf.Variable(tf.random_normal([2*2*256, n_classes], stddev=std_dev))
-        }
-
-        self.biases = {
-            'bc1': tf.Variable(tf.random_normal([BATCH_SIZE])),
-            'bc2': tf.Variable(tf.random_normal([BATCH_SIZE*2])),
-            'bc3': tf.Variable(tf.random_normal([BATCH_SIZE*4])),
-            'bc4': tf.Variable(tf.random_normal([BATCH_SIZE*4])),
-            'bc5': tf.Variable(tf.random_normal([256])),
-
-            'bd': tf.Variable(tf.random_normal([4096])),
-            'bfc': tf.Variable(tf.random_normal([2*2*256])),
-
-            'out': tf.Variable(tf.random_normal([n_classes]))
-        }
-
-        # Graph input
-        self.img_pl = tf.placeholder(tf.float32, [None, n_input, n_channels])
-        self.label_pl = tf.placeholder(tf.float32, [None, n_classes])
-        self.keep_prob_in = tf.placeholder(tf.float32)
-        self.keep_prob_hid = tf.placeholder(tf.float32)
-        
-        # Create a saver for writing training checkpoints.
-        self.saver = tf.train.Saver()
-
+        # Create the Keras model
+        self.model = AlexNetModel(n_classes=n_classes, input_dropout=input_dropout,
+                                  hidden_dropout=hidden_dropout)
 
 
     # Batch function for Training - give the next batch of images and labels
     def BatchIteratorTraining(self, batch_size):
         imgs = []
         labels = []
-            
+
         for img, label in self.train_imgs_lab:
             imgs.append(img)
             labels.append(label)
             if len(imgs) == batch_size:
-                yield imgs, labels
+                yield np.array(imgs), np.array(labels)
                 imgs = []
                 labels = []
         if len(imgs) > 0:
-            yield imgs, labels
+            yield np.array(imgs), np.array(labels)
 
 
     # Batch function for Testing - give the next batch of images and labels
@@ -111,219 +175,107 @@ class ConvNet(object):
             imgs.append(img)
             labels.append(label)
             if len(imgs) == batch_size:
-                yield imgs, labels
+                yield np.array(imgs), np.array(labels)
                 imgs = []
                 labels = []
         if len(imgs) > 0:
-            yield imgs, labels
+            yield np.array(imgs), np.array(labels)
 
-
-            
-    """ 
-    Create AlexNet model 
-    """
-    def conv2d(self, name, l_input, w, b, s):
-        return tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(l_input, w, strides=[1, s, s, 1], padding='SAME'), b), name=name)
-
-    def max_pool(self, name, l_input, k, s):
-        return tf.nn.max_pool(l_input, ksize=[1, k, k, 1], strides=[1, s, s, 1], padding='SAME', name=name)
-
-    def norm(self, name, l_input, lsize):
-        return tf.nn.lrn(l_input, lsize, bias=1.0, alpha=2e-05, beta=0.75, name=name)
-
-    def alex_net_model(self, _X, _weights, _biases, input_dropout, hidden_dropout):
-        # Reshape input picture
-
-        _X = tf.reshape(_X, shape=[-1, IMG_SIZE, IMG_SIZE, 3])
-
-        # Convolutional Layer 1
-        conv1 = self.conv2d('conv1', _X, _weights['wc1'], _biases['bc1'], s=4)
-        print("conv1.shape: ", conv1.get_shape())
-        # Max Pooling (down-sampling)
-        pool1 = self.max_pool('pool1', conv1, k=3, s=2)
-        print("pool1.shape:", pool1.get_shape())
-        # Apply Normalization
-        norm1 = self.norm('norm1', pool1, lsize=4)
-        print("norm1.shape:", norm1.get_shape())
-        # Apply Dropout
-        dropout1 = tf.nn.dropout(norm1, input_dropout)
-
-        tf.summary.histogram("weights", _weights['wc1'])
-        tf.summary.histogram("convolution", conv1 )
-        tf.summary.histogram("activation", norm1)
-
-        # Convolutional Layer 2
-        conv2 = self.conv2d('conv2', dropout1, _weights['wc2'], _biases['bc2'], s=1)
-        print("conv2.shape:", conv2.get_shape())
-        # Max Pooling (down-sampling)
-        pool2 = self.max_pool('pool2', conv2, k=3, s=2)
-        print("pool2.shape:", pool2.get_shape())
-        # Apply Normalization
-        norm2 = self.norm('norm2', pool2, lsize=4)
-        print("norm2.shape:", norm2.get_shape())
-        # Apply Dropout
-        #dropout2 = tf.nn.dropout(norm2, hidden_dropout)
-
-        tf.summary.histogram("weights", _weights['wc2'])
-        tf.summary.histogram("convolution", conv2 )
-        tf.summary.histogram("activation", norm2)
-
-        # Convolutional Layer 3
-        conv3 = self.conv2d('conv3', norm2, _weights['wc3'], _biases['bc3'], s=1)
-        print("conv3.shape:", conv3.get_shape())
-        pool3 = self.max_pool('pool3', conv3, k=3, s=2)
-        norm3 = self.norm('norm3', pool3, lsize=4)
-        dropout3 = tf.nn.dropout(norm3, hidden_dropout)
-
-        tf.summary.histogram("weights", _weights['wc3'])
-        tf.summary.histogram("convolution", conv3 )
-        tf.summary.histogram("activation", norm3)
-
-        # Convolutional Layer 4
-        conv4 = self.conv2d('conv4', dropout3, _weights['wc4'], _biases['bc4'], s=1)
-        print("conv4.shape:", conv4.get_shape())
-        pool4 = self.max_pool('pool4', conv4, k=3, s=2)
-        norm4 = self.norm('norm4', pool4, lsize=4)
-        dropout4 = tf.nn.dropout(norm4, hidden_dropout)
-
-        tf.summary.histogram("weights", _weights['wc4'])
-        tf.summary.histogram("convolution", conv4 )
-        tf.summary.histogram("activation", norm4)
-
-        # Convolutional Layer 5
-        conv5 = self.conv2d('conv5', dropout4, _weights['wc5'], _biases['bc5'], s=1)
-        print("conv5.shape:", conv5.get_shape())
-        pool5 = self.max_pool('pool5', conv5, k=3, s=2)
-
-        tf.summary.histogram("convolution", conv5 )
-
-        # Fully connected layer 1
-        pool5_shape = pool5.get_shape().as_list()
-        print("pool5_shape: ", pool5.get_shape())
-        dense = tf.reshape(pool5, [-1, pool5_shape[1] * pool5_shape[2] * pool5_shape[3]])
-        print("dense.shape:", dense.get_shape().as_list())
-        fc1 = tf.nn.relu(tf.matmul(dense, _weights['wd']) + _biases['bd'], name='fc1')  # Relu activation
-        print("fc1.shape:", fc1.get_shape())
-        #dropout6 = tf.nn.dropout(fc1, hidden_dropout) #
-
-        tf.summary.histogram("fully_connected", fc1)
-
-        # Fully connected layer 2
-        fc2 = tf.nn.relu(tf.matmul(fc1, _weights['wfc']) + _biases['bfc'], name='fc2')  # Relu activation
-        print("fc2.shape:", fc2.get_shape())
-        dropout7 = tf.nn.dropout(fc2, hidden_dropout)
-
-        tf.summary.histogram("fully_connected", fc2)
-
-        # Output, class prediction LOGITS
-        out = tf.matmul(dropout7, _weights['out']) + _biases['out']
-
-        tf.summary.histogram("output", out)
-
-        # The function returns the Logits to be passed to softmax and the Softmax for the PREDICTION
-        return out
 
     # Method for training the model and testing its accuracy
     def training(self):
 
-        # Launch the graph
-        with tf.Session() as sess:
+        # Compile the model
+        self.model.compile(
+            optimizer=tf.keras.optimizers.Adam(learning_rate=self.learning_rate, epsilon=0.1),
+            loss=tf.keras.losses.CategoricalCrossentropy(from_logits=True),
+            metrics=['accuracy']
+        )
 
-            ## Construct model: prepare logits, loss and optimizer ##
+        # Create checkpoint directory if it doesn't exist
+        if not os.path.exists(CKPT_DIR):
+            os.makedirs(CKPT_DIR)
 
-            # logits: unnormalized log probabilities
-            logits = self.alex_net_model(self.img_pl, self.weights, self.biases, self.keep_prob_in, self.keep_prob_hid)
+        # Setup callbacks
+        tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=CKPT_DIR, histogram_freq=1)
+        checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
+            filepath=MODEL_CKPT,
+            save_weights_only=True,
+            save_best_only=False,
+            verbose=1
+        )
 
-            # loss: cross-entropy between the target and the softmax activation function applied to the model's prediction
-            loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=self.label_pl))
+        # Collect validation data (first 6 batches)
+        validation_imgs_batch = [b for i, b in enumerate(self.BatchIteratorTraining(BATCH_SIZE)) if i < 6]
+        val_imgs = np.concatenate([batch[0] for batch in validation_imgs_batch], axis=0)
+        val_labels = np.concatenate([batch[1] for batch in validation_imgs_batch], axis=0)
 
-            tf.summary.scalar("cross-entropy_for_loss", loss)
+        # Training loop
+        for epoch in range(self.max_epochs):
+            print("epoch = %d" % epoch)
+            log.info("Epoch %s" % epoch)
+            self.train_imgs_lab = Dataset.loadDataset(self.dataset_training)  # necessary 'cause of the yield
 
-            # optimizer: find the best gradients of the loss with respect to each of the variables
-            train_step = tf.train.AdamOptimizer(learning_rate=self.learning_rate, epsilon=0.1).minimize(loss)
+            # Loop over all batches
+            for step, (batch_imgs_train, batch_labels_train) in enumerate(self.BatchIteratorTraining(BATCH_SIZE)):
+                print("step = %d" % step)
 
-            tf.summary.scalar("learning_rate", self.learning_rate)
-            
-            print(logits.get_shape(), self.label_pl.get_shape())
+                # Train on batch
+                history = self.model.fit(
+                    batch_imgs_train,
+                    batch_labels_train,
+                    batch_size=len(batch_imgs_train),
+                    epochs=1,
+                    verbose=0,
+                    callbacks=[tensorboard_callback] if step == 0 else []
+                )
 
-            ## Evaluate model: the degree to which the result of the prediction conforms to the correct value ##
-            
-            # list of booleans
-            correct_pred = tf.equal(tf.argmax(logits,1), tf.argmax(self.label_pl, 1))
-            # [True, False, True, True] -> [1,0,1,1] -> 0.75
-            accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
+                train_acc = history.history['accuracy'][0]
+                train_loss = history.history['loss'][0]
 
-            tf.summary.scalar("accuracy", accuracy)
+                if step % self.display_step == 0:
+                    log.info("Training Accuracy = " + "{:.5f}".format(train_acc))
+                    log.info("Training Loss = " + "{:.6f}".format(train_loss))
 
-            merged_summary_op = tf.summary.merge_all()
+        print("Optimization Finished!")
 
-            # Initializing the variables
-            init = tf.global_variables_initializer()
-            # Run the Op to initialize the variables.
-            sess.run(init)
-            summary_writer = tf.summary.FileWriter(CKPT_DIR, graph=sess.graph)
+        # Save the model weights
+        self.model.save_weights(MODEL_CKPT)
+        print("Model saved in file %s" % MODEL_CKPT)
 
-            ##################################################################
+        ### Metrics ###
+        target_names = ['class 0', 'class 1', 'class 2', 'class 3']
+        list_pred_total = []
+        list_true_total = []
 
-            # collect imgs for validation
-            validation_imgs_batch = [b for i, b in enumerate(self.BatchIteratorTraining(BATCH_SIZE)) if i < 6]
+        # Accuracy Precision Recall F1-score by VALIDATION IMAGES
+        for step, (batch_imgs_valid, batch_labels_valid) in enumerate(validation_imgs_batch):
 
-            # Run for epoch
-            for epoch in range(self.max_epochs):
-                print("epoch = %d" % epoch)
-                log.info("Epoch %s" % epoch)
-                self.train_imgs_lab = Dataset.loadDataset(self.dataset_training) # necessary 'cause of the yeld
-                
-                # Loop over all batches
-                for step, elems in enumerate(self.BatchIteratorTraining(BATCH_SIZE)):
-                    print("step = %d" % step)
-                    ### from iterator return batch lists ###
-                    batch_imgs_train, batch_labels_train = elems
-                    _, train_acc, train_loss, summary_op = sess.run([train_step, accuracy, loss, merged_summary_op], feed_dict={self.img_pl: batch_imgs_train, self.label_pl: batch_labels_train, self.keep_prob_in: 1.0, self.keep_prob_hid: 1.0})
+            # Get predictions
+            predictions = self.model.predict(batch_imgs_valid, verbose=0)
+            y_pred = np.argmax(predictions, axis=1)
 
-                    summary_writer.add_summary(summary_op, epoch * step + i)
+            # Calculate accuracy
+            y_true = np.argmax(batch_labels_valid, axis=1)
+            valid_acc = np.mean(y_pred == y_true)
 
-                    if step % self.display_step == 0:
-                        log.info("Training Accuracy = " + "{:.5f}".format(train_acc))
-                        log.info("Training Loss = " + "{:.6f}".format(train_loss))
-                    
-            print("Optimization Finished!")
+            log.info("Validation accuracy = " + "{:.5f}".format(valid_acc))
+            list_pred_total.extend(y_pred)
+            list_true_total.extend(y_true)
 
-            # Save the models to disk
-            save_model_ckpt = self.saver.save(sess, MODEL_CKPT)
-            print("Model saved in file %s" % save_model_ckpt)
+        # Classification Report (PRECISION - RECALL - F1 SCORE)
+        log.info("\n")
+        log.info(metrics.classification_report(list_true_total, list_pred_total, target_names=target_names))
 
-            ##################################################################
+        # Network Input Values
+        log.info("Learning Rate " + "{:.4f}".format(self.learning_rate))
+        log.info("Number of epochs " + "{:d}".format(self.max_epochs))
 
-            ### Metrics ###
-            y_p = tf.argmax(logits,1) # the value predicted
+        print(metrics.classification_report(list_true_total, list_pred_total, target_names=target_names))
 
-            target_names = ['class 0', 'class 1', 'class 2', 'class 3']
-            list_pred_total = []
-            list_true_total = []
-
-            # Accuracy Precision Recall F1-score by VALIDATION IMAGES
-            for step, elems in enumerate(validation_imgs_batch):
-
-                batch_imgs_valid, batch_labels_valid = elems
-                valid_acc, y_pred = sess.run([accuracy, y_p], feed_dict={self.img_pl: batch_imgs_valid, self.label_pl: batch_labels_valid, self.keep_prob_in: 1.0, self.keep_prob_hid: 1.0})
-                log.info("Validation accuracy = " + "{:.5f}".format(valid_acc))
-                list_pred_total.extend(y_pred)
-                y_true = np.argmax(batch_labels_valid,1)
-                list_true_total.extend(y_true)
-
-            # Classification Report (PRECISION - RECALL - F1 SCORE)
-            log.info("\n")
-            log.info(metrics.classification_report(list_true_total, list_pred_total, target_names=target_names))
-
-            # Network Input Values
-            log.info("Learning Rate " + "{:.4f}".format(self.learning_rate))
-            log.info("Number of epochs " + "{:d}".format(self.max_epochs))
-
-            print(metrics.classification_report(list_true_total, list_pred_total, target_names=target_names))
-
-            # ROC curve
-            fpr, tpr, _ = metrics.roc_curve(y_true, y_pred)
+        # ROC curve
+        if len(list_true_total) > 0 and len(list_pred_total) > 0:
+            fpr, tpr, _ = metrics.roc_curve(list_true_total, list_pred_total)
 
             plt.figure()
             plt.plot(fpr, tpr, label='ROC curve')
@@ -334,53 +286,46 @@ class ConvNet(object):
             plt.title('Recognition ROC curve')
             plt.legend(loc="lower right")
             plt.show()
-            
 
 
-    
     def prediction(self):
-        with tf.Session() as sess:
 
-            # Construct model
-            pred = self.alex_net_model(self.img_pl, self.weights, self.biases, self.keep_prob_in, self.keep_prob_hid)
+        # Load model weights
+        if os.path.exists(MODEL_CKPT + '.index'):
+            self.model.load_weights(MODEL_CKPT)
+            print("Model restored")
+        else:
+            print("No model checkpoint found to restore - ERROR")
+            return
 
-            # Restore model.
-            ckpt = tf.train.get_checkpoint_state("ckpt_dir")
-            if(ckpt):
-                self.saver.restore(sess, MODEL_CKPT)
-                print("Model restored")
-            else:
-                print("No model checkpoint found to restore - ERROR")
-                return
+        ### Metrics ###
+        target_names = ['class 0', 'class 1', 'class 2', 'class 3']
+        list_pred_total = []
+        list_true_total = []
 
-            ### M ###
-            y_p = tf.argmax(pred,1) # the value predicted
+        # Accuracy Precision Recall F1-score by TEST IMAGES
+        for step, (batch_imgs_test, batch_labels_test) in enumerate(self.BatchIteratorTesting(BATCH_SIZE)):
 
-            target_names = ['class 0', 'class 1', 'class 2', 'class 3']
-            list_pred_total = []
-            list_true_total = []
+            # Get predictions
+            predictions = self.model.predict(batch_imgs_test, verbose=0)
+            y_pred = np.argmax(predictions, axis=1)
 
-            # Accuracy Precision Recall F1-score by TEST IMAGES                                              
-            for step, elems in enumerate(self.BatchIteratorTesting(BATCH_SIZE)):
+            print("batch predict = %d" % len(y_pred))
+            list_pred_total.extend(y_pred)
 
-                batch_imgs_test, batch_labels_test = elems
+            y_true = np.argmax(batch_labels_test, axis=1)
+            print("batch real = %d" % len(y_true))
+            list_true_total.extend(y_true)
 
-                y_pred = sess.run(y_p, feed_dict={self.img_pl: batch_imgs_test, self.keep_prob_in: 1.0, self.keep_prob_hid: 1.0})
-                print("batch predict = %d" % len(y_pred))
-                list_pred_total.extend(y_pred)
-                y_true = np.argmax(batch_labels_test,1)
-                print("batch real = %d" % len(y_true))
-                list_true_total.extend(y_true)
+        # Classification Report (PRECISION - RECALL - F1 SCORE)
+        log.info('\n')
+        log.info(metrics.classification_report(list_true_total, list_pred_total, target_names=target_names))
 
-            # Classification Report (PRECISION - RECALL - F1 SCORE)
-            log.info('\n')
-            log.info(metrics.classification_report(list_true_total, list_pred_total, target_names=target_names))
+        # Network Input Values
+        log.info("Learning Rate " + "{:.4f}".format(self.learning_rate if self.learning_rate else 0.0))
+        log.info("Number of epochs " + "{:d}".format(self.max_epochs if self.max_epochs else 0))
 
-            # Network Input Values
-            log.info("Learning Rate " + "{:.4f}".format(self.learning_rate))
-            log.info("Number of epochs " + "{:d}".format(self.max_epochs))
-
-            print(metrics.classification_report(list_true_total, list_pred_total, target_names=target_names))
+        print(metrics.classification_report(list_true_total, list_pred_total, target_names=target_names))
 
 
 
@@ -468,7 +413,7 @@ def main():
     elif args.which == 'preprocessing_test':
             Dataset.saveDataset(TEST_IMAGE_DIR, args.test)
 
-      
+
 
 if __name__ == '__main__':
     main()
