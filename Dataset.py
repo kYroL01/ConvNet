@@ -15,7 +15,7 @@ import sys
 import numpy as np
 import tensorflow as tf
 import logging as log
-import cPickle as pickle
+import pickle
 import gzip
 from timeit import default_timer as timer
 
