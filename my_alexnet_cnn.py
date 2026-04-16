@@ -40,7 +40,7 @@ class ConvNet(object):
         # initialize all allowed keys to false
         self.__dict__.update((key, False) for key in params)
         # and update the given keys by their given values
-        self.__dict__.update((key, value) for key, value in kwargs.iteritems() if key in params)
+        self.__dict__.update((key, value) for key, value in kwargs.items() if key in params)
 
         if(self.dataset_training != False):
             self.train_imgs_lab = Dataset.loadDataset(self.dataset_training)
@@ -138,13 +138,13 @@ class ConvNet(object):
 
         # Convolutional Layer 1
         conv1 = self.conv2d('conv1', _X, _weights['wc1'], _biases['bc1'], s=4)
-        print "conv1.shape: ", conv1.get_shape()
+        print("conv1.shape: ", conv1.get_shape())
         # Max Pooling (down-sampling)
         pool1 = self.max_pool('pool1', conv1, k=3, s=2)
-        print "pool1.shape:", pool1.get_shape()
+        print("pool1.shape:", pool1.get_shape())
         # Apply Normalization
         norm1 = self.norm('norm1', pool1, lsize=4)
-        print "norm1.shape:", norm1.get_shape()
+        print("norm1.shape:", norm1.get_shape())
         # Apply Dropout
         dropout1 = tf.nn.dropout(norm1, input_dropout)
 
@@ -154,13 +154,13 @@ class ConvNet(object):
 
         # Convolutional Layer 2
         conv2 = self.conv2d('conv2', dropout1, _weights['wc2'], _biases['bc2'], s=1)
-        print "conv2.shape:", conv2.get_shape()
+        print("conv2.shape:", conv2.get_shape())
         # Max Pooling (down-sampling)
         pool2 = self.max_pool('pool2', conv2, k=3, s=2)
-        print "pool2.shape:", pool2.get_shape()
+        print("pool2.shape:", pool2.get_shape())
         # Apply Normalization
         norm2 = self.norm('norm2', pool2, lsize=4)
-        print "norm2.shape:", norm2.get_shape()
+        print("norm2.shape:", norm2.get_shape())
         # Apply Dropout
         #dropout2 = tf.nn.dropout(norm2, hidden_dropout)
 
@@ -170,7 +170,7 @@ class ConvNet(object):
 
         # Convolutional Layer 3
         conv3 = self.conv2d('conv3', norm2, _weights['wc3'], _biases['bc3'], s=1)
-        print "conv3.shape:", conv3.get_shape()
+        print("conv3.shape:", conv3.get_shape())
         pool3 = self.max_pool('pool3', conv3, k=3, s=2)
         norm3 = self.norm('norm3', pool3, lsize=4)
         dropout3 = tf.nn.dropout(norm3, hidden_dropout)
@@ -181,7 +181,7 @@ class ConvNet(object):
 
         # Convolutional Layer 4
         conv4 = self.conv2d('conv4', dropout3, _weights['wc4'], _biases['bc4'], s=1)
-        print "conv4.shape:", conv4.get_shape()
+        print("conv4.shape:", conv4.get_shape())
         pool4 = self.max_pool('pool4', conv4, k=3, s=2)
         norm4 = self.norm('norm4', pool4, lsize=4)
         dropout4 = tf.nn.dropout(norm4, hidden_dropout)
@@ -192,25 +192,25 @@ class ConvNet(object):
 
         # Convolutional Layer 5
         conv5 = self.conv2d('conv5', dropout4, _weights['wc5'], _biases['bc5'], s=1)
-        print "conv5.shape:", conv5.get_shape()
+        print("conv5.shape:", conv5.get_shape())
         pool5 = self.max_pool('pool5', conv5, k=3, s=2)
 
         tf.summary.histogram("convolution", conv5 )
 
         # Fully connected layer 1
         pool5_shape = pool5.get_shape().as_list()
-        print "pool5_shape: ", pool5.get_shape()
+        print("pool5_shape: ", pool5.get_shape())
         dense = tf.reshape(pool5, [-1, pool5_shape[1] * pool5_shape[2] * pool5_shape[3]])
-        print "dense.shape:", dense.get_shape().as_list()
+        print("dense.shape:", dense.get_shape().as_list())
         fc1 = tf.nn.relu(tf.matmul(dense, _weights['wd']) + _biases['bd'], name='fc1')  # Relu activation
-        print "fc1.shape:", fc1.get_shape()
+        print("fc1.shape:", fc1.get_shape())
         #dropout6 = tf.nn.dropout(fc1, hidden_dropout) #
 
         tf.summary.histogram("fully_connected", fc1)
 
         # Fully connected layer 2
         fc2 = tf.nn.relu(tf.matmul(fc1, _weights['wfc']) + _biases['bfc'], name='fc2')  # Relu activation
-        print "fc2.shape:", fc2.get_shape()
+        print("fc2.shape:", fc2.get_shape())
         dropout7 = tf.nn.dropout(fc2, hidden_dropout)
 
         tf.summary.histogram("fully_connected", fc2)
@@ -244,7 +244,7 @@ class ConvNet(object):
 
             tf.summary.scalar("learning_rate", self.learning_rate)
             
-            print logits.get_shape(), self.label_pl.get_shape()
+            print(logits.get_shape(), self.label_pl.get_shape())
 
             ## Evaluate model: the degree to which the result of the prediction conforms to the correct value ##
             
@@ -270,13 +270,13 @@ class ConvNet(object):
 
             # Run for epoch
             for epoch in range(self.max_epochs):
-                print "epoch = %d" % epoch
+                print("epoch = %d" % epoch)
                 log.info("Epoch %s" % epoch)
                 self.train_imgs_lab = Dataset.loadDataset(self.dataset_training) # necessary 'cause of the yeld
                 
                 # Loop over all batches
                 for step, elems in enumerate(self.BatchIteratorTraining(BATCH_SIZE)):
-                    print "step = %d" % step
+                    print("step = %d" % step)
                     ### from iterator return batch lists ###
                     batch_imgs_train, batch_labels_train = elems
                     _, train_acc, train_loss, summary_op = sess.run([train_step, accuracy, loss, merged_summary_op], feed_dict={self.img_pl: batch_imgs_train, self.label_pl: batch_labels_train, self.keep_prob_in: 1.0, self.keep_prob_hid: 1.0})
@@ -287,7 +287,7 @@ class ConvNet(object):
                         log.info("Training Accuracy = " + "{:.5f}".format(train_acc))
                         log.info("Training Loss = " + "{:.6f}".format(train_loss))
                     
-            print "Optimization Finished!"
+            print("Optimization Finished!")
 
             # Save the models to disk
             save_model_ckpt = self.saver.save(sess, MODEL_CKPT)
@@ -348,9 +348,9 @@ class ConvNet(object):
             ckpt = tf.train.get_checkpoint_state("ckpt_dir")
             if(ckpt):
                 self.saver.restore(sess, MODEL_CKPT)
-                print "Model restored"
+                print("Model restored")
             else:
-                print "No model checkpoint found to restore - ERROR"
+                print("No model checkpoint found to restore - ERROR")
                 return
 
             ### M ###
