@@ -24,7 +24,7 @@ wheels/
 
 # TensorFlow
 ckpt_dir/
-*.cktp
+*.ckpt
 
 # Logs
 *.log

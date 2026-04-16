@@ -16,7 +16,7 @@ from Dataset import IMG_SIZE, LABELS_DICT
 TRAIN_IMAGE_DIR = os.getcwd() + '/dataset'
 TEST_IMAGE_DIR = os.getcwd() + '/test_dataset'
 CKPT_DIR = 'ckpt_dir'
-MODEL_CKPT = 'ckpt_dir/model.cktp'
+MODEL_CKPT = 'ckpt_dir/model.ckpt'
 
 ### Parameters for Logistic Regression ###
 BATCH_SIZE = 64
