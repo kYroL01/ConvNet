@@ -10,6 +10,20 @@ A convolutional neural network for image recognition using AlexNet architecture 
 
 This project implements an AlexNet-based CNN for multi-class image classification. The model is designed to classify images into 4 categories: Cat, Tree, Horse, and Dog. It uses TensorFlow 2.x with the Keras API for a modern, efficient implementation.
 
+## Documentation
+
+For detailed documentation, advanced topics, and in-depth guides, please visit the **[Wiki](../../wiki)**:
+
+- **[AlexNet Architecture Theory](../../wiki/AlexNet-Architecture-Theory)** - Deep dive into the model architecture and theory
+- **[Advanced Training Configuration](../../wiki/Advanced-Training-Configuration)** - Detailed guide on all training parameters
+- **[Data Preparation Guide](../../wiki/Data-Preparation-Guide)** - Complete guide to preparing your dataset
+- **[Hyperparameter Tuning](../../wiki/Hyperparameter-Tuning)** - Strategies for optimizing model performance
+- **[Model Performance and Metrics](../../wiki/Model-Performance-and-Metrics)** - Understanding evaluation metrics
+- **[Advanced Troubleshooting](../../wiki/Advanced-Troubleshooting)** - Solutions to common and advanced issues
+- **[TensorFlow 2.x Migration Notes](../../wiki/TensorFlow-2x-Migration-Notes)** - Migration details from TensorFlow 1.x
+
+The README below covers the basics to get you started quickly. For comprehensive information, theory, and advanced usage, refer to the Wiki.
+
 ## Model Architecture
 
 The AlexNet model consists of:
