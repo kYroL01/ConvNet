@@ -21,7 +21,8 @@ DEFAULT_REQUIRED_PAGES = [
 ]
 
 
-def wiki_pages(wiki_dir: Path):
+def wiki_pages(wiki_dir: Path) -> list[Path]:
+    """Return sorted wiki markdown pages in the directory, excluding README.md."""
     return sorted(
         [p for p in wiki_dir.glob("*.md") if p.name not in {"README.md"}],
         key=lambda p: p.name,
@@ -91,7 +92,8 @@ def cmd_gh_create(args):
     return 0
 
 
-def check_internal_links(file_path: Path, wiki_dir: Path):
+def check_internal_links(file_path: Path, wiki_dir: Path) -> list[str]:
+    """Return unresolved markdown-link issues for a single wiki page."""
     issues = []
     content = file_path.read_text(encoding="utf-8")
     links = re.findall(r"\[[^\]]+\]\(([^)]+)\)", content)
@@ -128,7 +130,7 @@ def cmd_verify(args):
 
     issues = []
 
-    required_pages = DEFAULT_REQUIRED_PAGES if not args.required_pages else args.required_pages
+    required_pages = DEFAULT_REQUIRED_PAGES if args.required_pages is None else args.required_pages
     for page_name in required_pages:
         if not (wiki_dir / page_name).exists():
             issues.append(f"missing required page: {page_name}")
