@@ -30,6 +30,7 @@ def wiki_pages(wiki_dir: Path) -> list[Path]:
 
 
 def cmd_copy(args: argparse.Namespace) -> int:
+    """Copy wiki markdown pages to a destination directory."""
     wiki_dir = args.wiki_dir.resolve()
     dest_dir = args.dest.resolve()
 
@@ -55,6 +56,7 @@ def cmd_copy(args: argparse.Namespace) -> int:
 
 
 def cmd_gh_create(args: argparse.Namespace) -> int:
+    """Create wiki pages via `gh wiki create` for each markdown file."""
     wiki_dir = args.wiki_dir.resolve()
     if not wiki_dir.is_dir():
         print(f"ERROR: wiki directory not found: {wiki_dir}", file=sys.stderr)
@@ -123,6 +125,7 @@ def check_internal_links(file_path: Path, wiki_dir: Path) -> list[str]:
 
 
 def cmd_verify(args: argparse.Namespace) -> int:
+    """Verify required wiki pages exist and internal links resolve."""
     wiki_dir = args.wiki_dir.resolve()
     if not wiki_dir.is_dir():
         print(f"ERROR: wiki directory not found: {wiki_dir}", file=sys.stderr)
@@ -130,7 +133,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
 
     issues = []
 
-    required_pages = DEFAULT_REQUIRED_PAGES if args.required_pages is None else args.required_pages
+    required_pages = DEFAULT_REQUIRED_PAGES if not args.required_pages else args.required_pages
     for page_name in required_pages:
         if not (wiki_dir / page_name).exists():
             issues.append(f"missing required page: {page_name}")
@@ -149,6 +152,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments for wiki operations."""
     default_wiki_dir = Path(__file__).resolve().parent
 
     parser = argparse.ArgumentParser(description="Wiki operations helper")
@@ -183,6 +187,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
+    """Run the selected wiki operation and return its exit code."""
     args = parse_args()
     return args.func(args)
 
