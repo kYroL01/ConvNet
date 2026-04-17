@@ -101,7 +101,11 @@ def check_internal_links(file_path: Path, wiki_dir: Path) -> list[str]:
     links = re.findall(r"\[[^\]]+\]\(([^)]+)\)", content)
     for link in links:
         link = link.strip()
-        if not link or link.startswith(("http://", "https://", "#", "mailto:")):
+        if not link:
+            continue
+        if link.startswith("#"):  # same-page anchor
+            continue
+        if link.startswith(("http://", "https://", "mailto:")):
             continue
 
         target = link.split("#", 1)[0]
@@ -133,7 +137,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
 
     issues = []
 
-    required_pages = DEFAULT_REQUIRED_PAGES if not args.required_pages else args.required_pages
+    required_pages = DEFAULT_REQUIRED_PAGES if args.required_pages is None else args.required_pages
     for page_name in required_pages:
         if not (wiki_dir / page_name).exists():
             issues.append(f"missing required page: {page_name}")
@@ -178,7 +182,7 @@ def parse_args() -> argparse.Namespace:
     parser_verify = subparsers.add_parser("verify", help="Verify required pages and internal links")
     parser_verify.add_argument(
         "--required-pages",
-        nargs="*",
+        nargs="+",
         help="Optional custom required pages list (filenames with .md)",
     )
     parser_verify.set_defaults(func=cmd_verify)
