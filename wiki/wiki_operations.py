@@ -24,12 +24,12 @@ DEFAULT_REQUIRED_PAGES = [
 def wiki_pages(wiki_dir: Path) -> list[Path]:
     """Return sorted wiki markdown pages in the directory, excluding README.md."""
     return sorted(
-        [p for p in wiki_dir.glob("*.md") if p.name not in {"README.md"}],
+        [p for p in wiki_dir.glob("*.md") if p.name != "README.md"],
         key=lambda p: p.name,
     )
 
 
-def cmd_copy(args):
+def cmd_copy(args: argparse.Namespace) -> int:
     wiki_dir = args.wiki_dir.resolve()
     dest_dir = args.dest.resolve()
 
@@ -54,7 +54,7 @@ def cmd_copy(args):
     return 0
 
 
-def cmd_gh_create(args):
+def cmd_gh_create(args: argparse.Namespace) -> int:
     wiki_dir = args.wiki_dir.resolve()
     if not wiki_dir.is_dir():
         print(f"ERROR: wiki directory not found: {wiki_dir}", file=sys.stderr)
@@ -122,7 +122,7 @@ def check_internal_links(file_path: Path, wiki_dir: Path) -> list[str]:
     return issues
 
 
-def cmd_verify(args):
+def cmd_verify(args: argparse.Namespace) -> int:
     wiki_dir = args.wiki_dir.resolve()
     if not wiki_dir.is_dir():
         print(f"ERROR: wiki directory not found: {wiki_dir}", file=sys.stderr)
@@ -148,7 +148,7 @@ def cmd_verify(args):
     return 0
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     default_wiki_dir = Path(__file__).resolve().parent
 
     parser = argparse.ArgumentParser(description="Wiki operations helper")
@@ -182,7 +182,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def main():
+def main() -> int:
     args = parse_args()
     return args.func(args)
 
