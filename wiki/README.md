@@ -15,6 +15,45 @@ This directory contains comprehensive documentation for the ConvNet project. The
 
 ## How to Upload to GitHub Wiki
 
+## Implemented Operations
+
+The operations described in this README are implemented in:
+
+```bash
+python wiki/wiki_operations.py [--wiki-dir <path>] <command> [options]
+```
+
+### 1) Copy Wiki Pages to a Local `.wiki` Repository (Method 2 helper)
+
+```bash
+# Example: assumes ConvNet.wiki already exists locally
+python wiki/wiki_operations.py copy --dest /path/to/ConvNet.wiki
+```
+
+Dry run:
+
+```bash
+python wiki/wiki_operations.py copy --dest /path/to/ConvNet.wiki --dry-run
+```
+
+### 2) Create Wiki Pages with GitHub CLI (Method 3)
+
+```bash
+python wiki/wiki_operations.py gh-create -R kYroL01/ConvNet
+```
+
+Dry run:
+
+```bash
+python wiki/wiki_operations.py gh-create -R kYroL01/ConvNet --dry-run
+```
+
+### 3) Verify Required Wiki Pages and Internal Links
+
+```bash
+python wiki/wiki_operations.py verify
+```
+
 ### Method 1: Using GitHub Web Interface
 
 1. Go to your repository on GitHub: https://github.com/kYroL01/ConvNet
