@@ -1,6 +1,6 @@
 [![MIT Licence](https://badges.frapsoft.com/os/mit/mit.svg?v=103)](https://opensource.org/licenses/mit-license.php)
 [![PyPI version](https://img.shields.io/pypi/v/ConvNet)](https://pypi.org/project//)
-[![GitHub release](https://img.shields.io/github/v/release/kYroL01/ConvNet?style=flat-square)](https://github.com/kYroL01/ConvNet/releases/latest)
+[![GitHub release](https://img.shields.io/github/v/tag/kYroL01/ConvNet?style=flat-square)](https://github.com/kYroL01/ConvNet/tags)
 
 # ConvNet
 
