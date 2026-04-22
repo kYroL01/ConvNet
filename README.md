@@ -238,7 +238,7 @@ The model classifies images into 4 categories:
 - **Solution**: Reduce batch size in `my_alexnet_cnn.py` (BATCH_SIZE variable)
 
 **Issue**: Images not loading
-- **Solution**: Ensure images are in JPEG format (.jpg or .jpeg) and organized in correct directory structure
+- **Solution**: Ensure images are in JPEG format (.jpg or .jpeg) and organized in the correct directory structure
 
 ## License
 
@@ -251,3 +251,10 @@ Copyright (c) 2017 Michele Campus
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+---
+
+[![Buy me a coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-PayPal-00457C?logo=paypal&logoColor=white)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=fci1908%40gmail.com&currency_code=USD)
+
+PayPal: **fci1908@gmail.com**
+
